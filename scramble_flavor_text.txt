@@ -1,0 +1,194 @@
+; ===INSTRUCTIONS===
+; Place each flavor text in its own line under the appropriate section.
+; Cards that fall into more than one category will use all of the appropriate category. So a Synchro Pendulum Monster can get a flavor text from the generic, monster, syncro, or pendulum sections.
+; [X] will be replaced with the name of the card it is on.
+; [Y] will be replaced with the name of a random Monster card.
+; Lines starting with ; are comments and will be ignored.
+; If you need a comment to span multiple lines, \n functions as a linebreak.
+
+===GENERIC===
+I'd put some ancient Egyptian text here if I could.
+The problem with using Duel Disks is that you can't read your opponent's cards from 30 feet away.
+Let's be honest. You wouldn't read this card even if you could.
+You don't know what this card does. But since your opponent bothered to play it, it must be good, right?
+Don't worry about this card. It doesn't do anything important. I promise.
+This card's effect was too hot for the TCG.
+We've moved beyond censoring card arts and have started censoring effects.
+Before you take your opponent's card, remember what happened to Mai when she stole Ra.
+This is card brought to you by the Heart of the Cards.
+Surely this card will get a retrain someday.
+Be careful. This card might have a secret effect.
+Statistically speaking, there is someone who lost to this card once and has been calling for its ban ever since.
+I'm sorry, but the the Great Leviathan said it doesn't want your soul after all.
+You could try using the Millennium Eye to read your opponent's mind to find out what this card does, but I really don't recomment it. Just trust me on this.
+This card is great in Forbidden Memories.
+Konami, please implement this format in Master Duel.
+Have you ever even seen this card before?
+This is Yu-Gi-Oh the way Kazuki Takahashi intended.
+This card can FTK when used with [Y].
+...except "Frog the Jam".
+#FreePity
+Is this the fabled "The Out" you've heard so much about?
+Which part of the Duel Terminal storyline was this?
+This card was better under Duelist Kingdom rules.
+I apologize to all the fans of Nekroz, Megalith, Assault Mode, and all the other cards that just don't work because of how this format works.
+I could be testing for more bugs. Instead, I wrote flavor text.
+This card would be good in limited.
+This card has a real card's effect, so it can't be broken. Right?
+Pegasus handcrafted every single one of these cards.
+This card was designed by Chumley.
+I think I saw this in a Gradius game once.
+Fun Fact: The OCG version of this card includes a war crime.
+Yusei found this card in a dumpster.
+Sometimes, reading the card does not explain the card.
+Yugi never stopped to read an opponent's card.
+
+===MONSTER===
+Haste\nVigilance\nTrample\n[X] must be blocked if able.\n[X] or another creature you control must block every attacking creature if able.
+[X]'s offensive capabilities have greatly increased, but the strangeness of its behavior has magnified in equal measure. This worries me.\n-Professor Kozaky
+If a child it has made friends with is bullied, [X] will find the bully's house and burn it to the ground.
+[X] is said to emerge from darkness to steal the lives of those who become lost in mountains.
+It is whispered that any child who mistakes [X] for a balloon and holds on to it could wind up missing.
+Keep an eye out for my [X]/[Y] fanfic coming soon!
+[X] has chosen itself to become your Deck Master.
+[X]'s battle prowess is easily matched and can be safely ignored.
+[X] wears the skull of its deceased mother. Its cries echo inside the skull and come out as a sad melody.
+Gagagigo will probably fight this at some point.
+Would. Next question.
+Someone at my locals uses a playmat featuring [X] in a maid outfit. Should I be concerned?
+If you destroy [X], its Duel Spirit will haunt you.
+[X]'s application to join the Rescue Squad was rejected for not being cute enough.
+I hear [X] will be the star of the next OCG Stories manga.
+[X] is having an existential crisis and doesn't want to become material.
+[X] is the embodiment of Visas Starfrost's ennui.
+You're the one who wants to destroy [X], so who's the real monster?
+[X] might actually be an Ojama in disguise.
+Did you know that in terms of Duel Spirit breeding, [X] is the most compatible...
+The [X] Duel Spirit probably seemed pretty out of place in ancient Egypt.
+I would make a Capsule Monsters joke here, but I've never seen it, and you probably haven't either.
+
+; The categories below repeat their flavor texts to make them more likely to appear, since there are so many more in the generic category.
+
+===RITUAL MONSTER===
+Rituals: Ruined by Yu-Gi-Oh since 2002.
+[X] wishes it could live in the Extra Deck.
+Rituals: Ruined by Yu-Gi-Oh since 2002.
+[X] wishes it could live in the Extra Deck.
+Rituals: Ruined by Yu-Gi-Oh since 2002.
+[X] wishes it could live in the Extra Deck.
+Rituals: Ruined by Yu-Gi-Oh since 2002.
+[X] wishes it could live in the Extra Deck.
+Rituals: Ruined by Yu-Gi-Oh since 2002.
+[X] wishes it could live in the Extra Deck.
+
+===FUSION===
+Fusions: Ruining Yu-Gi-Oh since 2002.
+Does naming "Fallen of Albaz" in this flavor text count?
+Do these materials really make any less sense then the originals?
+Fusions: Ruining Yu-Gi-Oh since 2002.
+Does naming "Fallen of Albaz" in this flavor text count?
+Do these materials really make any less sense then the originals?
+Fusions: Ruining Yu-Gi-Oh since 2002.
+Does naming "Fallen of Albaz" in this flavor text count?
+Do these materials really make any less sense then the originals?
+Fusions: Ruining Yu-Gi-Oh since 2002.
+Does naming "Fallen of Albaz" in this flavor text count?
+Do these materials really make any less sense then the originals?
+
+===SYNCHRO===
+Synchros: Ruining Yu-Gi-Oh since 2008.
+Synchros: Ruining Yu-Gi-Oh since 2008.
+Synchros: Ruining Yu-Gi-Oh since 2008.
+Synchros: Ruining Yu-Gi-Oh since 2008.
+Synchros: Ruining Yu-Gi-Oh since 2008.
+
+===XYZ===
+Xyzs: Ruining Yu-Gi-Oh since 2011.
+I'd put some Astral Glyphs here if I could.
+Xyzs: Ruining Yu-Gi-Oh since 2011.
+I'd put some Astral Glyphs here if I could.
+Xyzs: Ruining Yu-Gi-Oh since 2011.
+I'd put some Astral Glyphs here if I could.
+Xyzs: Ruining Yu-Gi-Oh since 2011.
+I'd put some Astral Glyphs here if I could.
+Xyzs: Ruining Yu-Gi-Oh since 2011.
+I'd put some Astral Glyphs here if I could.
+
+===PENDULUM===
+Pendulums: Ruining Yu-Gi-Oh since 2014.
+Pendulums: Ruining Yu-Gi-Oh since 2014.
+Pendulums: Ruining Yu-Gi-Oh since 2014.
+Pendulums: Ruining Yu-Gi-Oh since 2014.
+Pendulums: Ruining Yu-Gi-Oh since 2014.
+
+===LINK===
+Links: Ruining Yu-Gi-Oh since 2017.
+Links: Ruining Yu-Gi-Oh since 2017.
+Links: Ruining Yu-Gi-Oh since 2017.
+Links: Ruining Yu-Gi-Oh since 2017.
+Links: Ruining Yu-Gi-Oh since 2017.
+
+===SPELL===
+Call it a Magic Card to annoy a Hasbro executive.
+Call it a Magic Card to annoy a Hasbro executive.
+Call it a Magic Card to annoy a Hasbro executive.
+Call it a Magic Card to annoy a Hasbro executive.
+Call it a Magic Card to annoy a Hasbro executive.
+
+===EQUIP===
+"You have my sword."\n"And you have my bow."\n"And my [X]."
+Anyway, here's "Wonder Wand".
+"You have my sword."\n"And you have my bow."\n"And my [X]."
+Anyway, here's "Wonder Wand".
+"You have my sword."\n"And you have my bow."\n"And my [X]."
+Anyway, here's "Wonder Wand".
+"You have my sword."\n"And you have my bow."\n"And my [X]."
+Anyway, here's "Wonder Wand".
+"You have my sword."\n"And you have my bow."\n"And my [X]."
+Anyway, here's "Wonder Wand".
+
+===FIELD===
+Still looks better than my last Airbnb.
+Still looks better than my last Airbnb.
+Still looks better than my last Airbnb.
+Still looks better than my last Airbnb.
+Still looks better than my last Airbnb.
+
+===CONTINUOUS SPELL===
+; I haven't thought of anything funny enough to put here yet.
+
+===RITUAL SPELL===
+That's right! I'll sacrifice [Y]!
+That's right! I'll sacrifice [Y]!
+That's right! I'll sacrifice [Y]!
+That's right! I'll sacrifice [Y]!
+That's right! I'll sacrifice [Y]!
+
+===QUICKPLAY===
+; I haven't thought of anything funny enough to put here yet.
+
+===TRAP===
+Any Trap can be a handtrap if you're sneaky enough.
+This Trap deals emotional damage.
+Any Trap can be a handtrap if you're sneaky enough.
+This Trap deals emotional damage.
+Any Trap can be a handtrap if you're sneaky enough.
+This Trap deals emotional damage.
+Any Trap can be a handtrap if you're sneaky enough.
+This Trap deals emotional damage.
+Any Trap can be a handtrap if you're sneaky enough.
+This Trap deals emotional damage.
+
+===CONTINUOUS TRAP===
+This might not be a floodgate.
+This might not be a floodgate.
+This might not be a floodgate.
+This might not be a floodgate.
+This might not be a floodgate.
+
+===COUNTER===
+[Y] says no.
+[Y] says no.
+[Y] says no.
+[Y] says no.
+[Y] says no.
