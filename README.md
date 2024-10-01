@@ -37,7 +37,7 @@ In addition to the customization options available in the GUI, you can:
 Good news! Wham Bam Duel and I have been doing a scrambled version of the Progression Series formula on [his YouTube channel](https://www.youtube.com/@whambamduel). You can see the playlist [here](https://www.youtube.com/playlist?list=PLWB6oGocBDhSjoIEvsT857FMLtcbTSnY4). It is just as chaotic as you might imagine, and it didn't take long for amazing interactions to start appearing.
 
 ## "Can I Make Content Using the YGO Scrambler Too?"
-Of course you can! Please let me know if you do, because I want to see it. (The best place to reach me is probably Discord, where I am `The Letter J`. You can find me in several Yu-Gi-Oh servers, including the Project Ignis server.)
+Of course you can! Please let me know if you do, because I want to see it. (The best place to reach me is probably Discord, where I am `The Letter J`. You can find me in several Yu-Gi-Oh servers, including the Project Ignis server. Or use the Discussions tab here on the repository.)
 
 ## Known Issues/Bugs
 * The YGO Scrambler has only been tested on Windows so far. I *think* it should work on other systems, but I make no guarantees.
