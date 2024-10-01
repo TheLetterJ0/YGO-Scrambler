@@ -4,7 +4,7 @@
 ; [X] will be replaced with the name of the card it is on.
 ; [Y] will be replaced with the name of a random Monster card.
 ; Lines starting with ; are comments and will be ignored.
-; If you need a comment to span multiple lines, \n functions as a linebreak.
+; If you need a flavor text to span multiple lines, \n functions as a linebreak.
 
 ===GENERIC===
 I'd put some ancient Egyptian text here if I could.
