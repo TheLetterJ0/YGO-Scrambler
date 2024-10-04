@@ -3,7 +3,7 @@ This tool was created to scramble the effects of Yu-Gi-Oh cards to create a bran
 And if you and your opponent are using separate scrambles, you can recreate that feeling of not knowing what your opponent's cards do until you play into them, just like in the anime.
 
 ## How to Use
-1. Install [Python](https://www.python.org/downloads/).
+1. Install [Python](https://www.python.org/downloads/). If you already have Python, make sure it is at least version 3.10. (Run `python -V` to check.)
 2. Install Project Ignis's [EDOPro](https://projectignis.github.io).
 3. Open EDOPro, to ensure that it has downloaded the latest card scripts.
 4. Get your .cdb (card database) file. You can download the most up-to-date one from Project Ignis [here](https://github.com/ProjectIgnis/BabelCDB/blob/master/cards.cdb). Make sure that you and your opponent are using the same original .cdb file.
