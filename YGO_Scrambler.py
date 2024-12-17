@@ -297,13 +297,15 @@ def fix_scripts(old_ids, new_ids, script_new_path, new_types):
                     for line in file:
                         newline = line
                         # Tokens have IDs 1 higher than the card that summons them, so we have to use the ID of card that originally had that effect.
-                        if ("Duel.CreateToken" in newline or "Duel.IsPlayerCanSpecialSummonMonster" in newline) and ("id+1" in newline or "id+2" in line or "id+i" in newline):
+                        if ("Duel.CreateToken" in newline or "Duel.IsPlayerCanSpecialSummonMonster" in newline or ("local TOKEN_" in newline or ("local " in newline and "_TOKEN" in newline))) and ("id+1" in newline or "id+2" in line or "id+i" in newline):
                             newline = newline.replace("id+1", str(old_ids[i] + 1)).replace("id+2", str(old_ids[i] + 2)).replace("id+i", str(old_ids[i]) + "+i")
                         if "c:IsOriginalCode(" in newline:
                             # There are scripts with "IsOriginalCode(id)", "IsOriginalCode(XXXXXXXX)" and so on. This should cover all possibilities.
                             newline = re.sub(r"([A-Za-z]*c):IsOriginalCode\((.+?)\)", r"(\1:IsOriginalCode(\2) or \1:IsOriginalCode(\2 - " + str(PLAYER_1_OFFSET) + r") or \1:IsOriginalCode(\2 + " + str(PLAYER_1_OFFSET) + r") or \1:IsOriginalCode(\2 - " + str(PLAYER_2_OFFSET) + r") or \1:IsOriginalCode(\2 + " + str(PLAYER_2_OFFSET) + r"))", newline)
                         if ":IsCode(id" in newline:
                             newline = re.sub(r" ([A-Za-z0-9\(\):]*):IsCode\((id.*?)\)", r" (\1:IsCode(\2) or \1:IsCode(\2 - " + str(PLAYER_1_OFFSET) + r") or \1:IsCode(\2 + " + str(PLAYER_1_OFFSET) + r") or \1:IsCode(\2 - " + str(PLAYER_2_OFFSET) + r") or \1:IsCode(\2 + " + str(PLAYER_2_OFFSET) + r"))", newline)
+                        if "GetCode()~=id" in newline:
+                            newline = re.sub(r" ([A-Za-z0-9\(\):]*):GetCode\(\)~=(id.*?)", r" (\1:GetCode()~=\2 or \1:GetCode()~=\2 - " + str(PLAYER_1_OFFSET) + r" or \1:GetCode()~=\2 + " + str(PLAYER_1_OFFSET) + r" or \1:GetCode()~=\2 - " + str(PLAYER_2_OFFSET) + r" or \1:GetCode()~=\2 + " + str(PLAYER_2_OFFSET) + r")", newline)
                         new_file_text += newline
                 with open(script_path, 'w', encoding="utf8") as file:
                     file.write(new_file_text)
@@ -312,222 +314,237 @@ def fix_scripts(old_ids, new_ids, script_new_path, new_types):
 
 def fix_individual_cards(old_id_to_new_effect_id_dict, script_new_path):
     # Fix "That's 10!"
-    thats_ten_new_id = old_id_to_new_effect_id_dict[97223101]
-    script_path = Path(script_new_path, 'c' + str(thats_ten_new_id) + '.lua')
-    new_file_text = ""
-    with open(script_path, encoding="utf8") as file:
-        is_field = False
-        for line in file:
-            if "return code1~=id and code2~=id" in line:
-                new_file_text += f"return code1~=id and code2~=id and code1~=id-{PLAYER_ID_OFFSET} and code2~=id-{PLAYER_ID_OFFSET}\r\n"
-            else:
-                new_file_text += line
-            if "LOCATION_FZONE" in line:
-                is_field = True
-        # The effect to enable the adding of counters uses LOCATION_STZONE instead of LOCATION_SZONE, so we need to manually replace it if That's 10 is a Field Spell.
-        if is_field:
-            new_file_text.replace("LOCATION_STZONE", "LOCATION_FZONE")
-    with open(script_path, 'w', encoding="utf8") as file:
-        file.write(new_file_text)
+    if 97223101 in old_id_to_new_effect_id_dict:
+        thats_ten_new_id = old_id_to_new_effect_id_dict[97223101]
+        script_path = Path(script_new_path, 'c' + str(thats_ten_new_id) + '.lua')
+        new_file_text = ""
+        with open(script_path, encoding="utf8") as file:
+            is_field = False
+            for line in file:
+                if "return code1~=id and code2~=id" in line:
+                    new_file_text += f"return code1~=id and code2~=id and code1~=id-{PLAYER_ID_OFFSET} and code2~=id-{PLAYER_ID_OFFSET}\r\n"
+                else:
+                    new_file_text += line
+                if "LOCATION_FZONE" in line:
+                    is_field = True
+            # The effect to enable the adding of counters uses LOCATION_STZONE instead of LOCATION_SZONE, so we need to manually replace it if That's 10 is a Field Spell.
+            if is_field:
+                new_file_text.replace("LOCATION_STZONE", "LOCATION_FZONE")
+        with open(script_path, 'w', encoding="utf8") as file:
+            file.write(new_file_text)
     
     # Fix "Dark Sage"
-    dark_sage_new_id = old_id_to_new_effect_id_dict[92377303]
-    script_path = Path(script_new_path, 'c' + str(dark_sage_new_id) + '.lua')
-    new_file_text = ""
-    with open(script_path, encoding="utf8") as file:
-        for line in file:
-            if "71625222" in line:
-                new_file_text += line.replace("71625222", str(old_id_to_new_effect_id_dict[71625222]))
-            else:
-                new_file_text += line
-    with open(script_path, 'w', encoding="utf8") as file:
-        file.write(new_file_text)
+    if 92377303 in old_id_to_new_effect_id_dict:
+        dark_sage_new_id = old_id_to_new_effect_id_dict[92377303]
+        script_path = Path(script_new_path, 'c' + str(dark_sage_new_id) + '.lua')
+        new_file_text = ""
+        with open(script_path, encoding="utf8") as file:
+            for line in file:
+                if "71625222" in line:
+                    new_file_text += line.replace("71625222", str(old_id_to_new_effect_id_dict[71625222]))
+                else:
+                    new_file_text += line
+        with open(script_path, 'w', encoding="utf8") as file:
+            file.write(new_file_text)
     
     # Fix "Metalzoa" and "Red-Eyes Black Metal Dragon"
-    metal_new_ids = [old_id_to_new_effect_id_dict[50705071], old_id_to_new_effect_id_dict[64335804]]
-    for id in metal_new_ids:
-        script_path = Path(script_new_path, 'c' + str(id) + '.lua')
-        new_file_text = ""
-        with open(script_path, encoding="utf8") as file:
-            for line in file:
-                if "68540058" in line:
-                    new_file_text += line.replace("68540058", str(old_id_to_new_effect_id_dict[68540058] - PLAYER_ID_OFFSET))
-                else:
-                    new_file_text += line
-        with open(script_path, 'w', encoding="utf8") as file:
-            file.write(new_file_text)
+    for metal_id in [50705071, 64335804]:
+        if metal_id in old_id_to_new_effect_id_dict:
+            newid = old_id_to_new_effect_id_dict[metal_id]
+            script_path = Path(script_new_path, 'c' + str(newid) + '.lua')
+            new_file_text = ""
+            with open(script_path, encoding="utf8") as file:
+                for line in file:
+                    if "68540058" in line:
+                        new_file_text += line.replace("68540058", str(old_id_to_new_effect_id_dict[68540058] - PLAYER_ID_OFFSET))
+                    else:
+                        new_file_text += line
+            with open(script_path, 'w', encoding="utf8") as file:
+                file.write(new_file_text)
     
     # Fix "Tellus the Little Angel"
-    tellus_new_id = old_id_to_new_effect_id_dict[19280589]
-    script_path = Path(script_new_path, 'c' + str(tellus_new_id) + '.lua')
-    new_file_text = ""
-    with open(script_path, encoding="utf8") as file:
-        for line in file:
-            if "c:IsCode(id+1)" in line:
-                new_file_text += "return c:IsCode(19280590) and c:IsType(TYPE_TOKEN)\r\n"
-            else:
-                new_file_text += line
-    with open(script_path, 'w', encoding="utf8") as file:
-        file.write(new_file_text)
+    if 19280589 in old_id_to_new_effect_id_dict:
+        tellus_new_id = old_id_to_new_effect_id_dict[19280589]
+        script_path = Path(script_new_path, 'c' + str(tellus_new_id) + '.lua')
+        new_file_text = ""
+        with open(script_path, encoding="utf8") as file:
+            for line in file:
+                if "c:IsCode(id+1)" in line:
+                    new_file_text += "return c:IsCode(19280590) and c:IsType(TYPE_TOKEN)\r\n"
+                else:
+                    new_file_text += line
+        with open(script_path, 'w', encoding="utf8") as file:
+            file.write(new_file_text)
     
     # Fix "Exodia"
-    exodia_new_id = old_id_to_new_effect_id_dict[33396948]
-    script_path = Path(script_new_path, 'c' + str(exodia_new_id) + '.lua')
-    new_file_text = ""
-    with open(script_path, encoding="utf8") as file:
-        for line in file:
-            if "elseif code==id then a5=true" in line:
-                new_file_text += f"elseif (code==id or code==id-{PLAYER_1_OFFSET} or code==id-{PLAYER_2_OFFSET}) then a5=true\r\n"
-            else:
-                new_file_text += line
-    with open(script_path, 'w', encoding="utf8") as file:
-        file.write(new_file_text)
+    if 33396948 in old_id_to_new_effect_id_dict:
+        exodia_new_id = old_id_to_new_effect_id_dict[33396948]
+        script_path = Path(script_new_path, 'c' + str(exodia_new_id) + '.lua')
+        new_file_text = ""
+        with open(script_path, encoding="utf8") as file:
+            for line in file:
+                if "elseif code==id then a5=true" in line:
+                    new_file_text += f"elseif (code==id or code==id-{PLAYER_1_OFFSET} or code==id-{PLAYER_2_OFFSET}) then a5=true\r\n"
+                else:
+                    new_file_text += line
+        with open(script_path, 'w', encoding="utf8") as file:
+            file.write(new_file_text)
     
     # Fix "Quickdraw Synchron"
-    quickdraw_new_id = old_id_to_new_effect_id_dict[20932152]
-    script_path = Path(script_new_path, 'c' + str(quickdraw_new_id) + '.lua')
-    new_file_text = ""
-    with open(script_path, encoding="utf8") as file:
-        for line in file:
-            if "e3:SetCode(id)" in line:
-                new_file_text += "e3:SetCode(20932152)\r\n"
-            else:
-                new_file_text += line
-    with open(script_path, 'w', encoding="utf8") as file:
-        file.write(new_file_text)
+    if 20932152 in old_id_to_new_effect_id_dict:
+        quickdraw_new_id = old_id_to_new_effect_id_dict[20932152]
+        script_path = Path(script_new_path, 'c' + str(quickdraw_new_id) + '.lua')
+        new_file_text = ""
+        with open(script_path, encoding="utf8") as file:
+            for line in file:
+                if "e3:SetCode(id)" in line:
+                    new_file_text += "e3:SetCode(20932152)\r\n"
+                else:
+                    new_file_text += line
+        with open(script_path, 'w', encoding="utf8") as file:
+            file.write(new_file_text)
     
     # Fix "Ruin, Angel of Oblivion" and "Ruin, Supreme Queen of Oblivion"
-    ruin_new_ids = [old_id_to_new_effect_id_dict[50139096], old_id_to_new_effect_id_dict[13518809]]
-    new_ruin_id = old_id_to_new_effect_id_dict[46427957]
-    for id in ruin_new_ids:
-        script_path = Path(script_new_path, 'c' + str(id) + '.lua')
-        new_file_text = ""
-        with open(script_path, encoding="utf8") as file:
-            for line in file:
-                if "e1:SetValue(46427957)" in line:
-                    new_file_text += "e1:SetValue(" + str(new_ruin_id) + ")\r\n"
-                else:
-                    new_file_text += line
-        with open(script_path, 'w', encoding="utf8") as file:
-            file.write(new_file_text)
+    if 46427957 in old_id_to_new_effect_id_dict:
+        new_og_ruin_id = old_id_to_new_effect_id_dict[46427957]
+        for old_ruin_id in [50139096, 13518809]:
+            ruin_new_id = old_id_to_new_effect_id_dict[old_ruin_id]
+            script_path = Path(script_new_path, 'c' + str(ruin_new_id) + '.lua')
+            new_file_text = ""
+            with open(script_path, encoding="utf8") as file:
+                for line in file:
+                    if "e1:SetValue(46427957)" in line:
+                        new_file_text += "e1:SetValue(" + str(new_og_ruin_id) + ")\r\n"
+                    else:
+                        new_file_text += line
+            with open(script_path, 'w', encoding="utf8") as file:
+                file.write(new_file_text)
     
     # Fix "Demise, Agent of Armageddon" and "Demise, Supreme King of Armageddon"
-    demise_new_ids = [old_id_to_new_effect_id_dict[86124104], old_id_to_new_effect_id_dict[59913418]]
-    new_demise_id = old_id_to_new_effect_id_dict[72426662]
-    for id in demise_new_ids:
-        script_path = Path(script_new_path, 'c' + str(id) + '.lua')
+    if 72426662 in old_id_to_new_effect_id_dict:
+        new_og_demise_id = old_id_to_new_effect_id_dict[72426662]
+        for old_demise_id in [86124104, 59913418]:
+            demise_new_id = old_id_to_new_effect_id_dict[old_demise_id]
+            script_path = Path(script_new_path, 'c' + str(demise_new_id) + '.lua')
+            new_file_text = ""
+            with open(script_path, encoding="utf8") as file:
+                for line in file:
+                    if "e1:SetValue(72426662)" in line:
+                        new_file_text += "e1:SetValue(" + str(new_demise_id) + ")\r\n"
+                    else:
+                        new_file_text += line
+            with open(script_path, 'w', encoding="utf8") as file:
+                file.write(new_file_text)
+    
+    # Fix "Shinobaron Shade Peacock"
+    if 60823690 in old_id_to_new_effect_id_dict and 52900000 in old_id_to_new_effect_id_dict:
+        shade_new_id = old_id_to_new_effect_id_dict[60823690]
+        new_baron_id = old_id_to_new_effect_id_dict[52900000]
+        script_path = Path(script_new_path, 'c' + str(shade_new_id) + '.lua')
         new_file_text = ""
         with open(script_path, encoding="utf8") as file:
             for line in file:
-                if "e1:SetValue(72426662)" in line:
-                    new_file_text += "e1:SetValue(" + str(new_demise_id) + ")\r\n"
+                if "e1:SetValue(52900000)" in line:
+                    new_file_text += "e1:SetValue(" + str(new_baron_id) + ")\r\n"
                 else:
                     new_file_text += line
         with open(script_path, 'w', encoding="utf8") as file:
             file.write(new_file_text)
     
-    # Fix "Shinobaron Shade Peacock"
-    shade_new_id = old_id_to_new_effect_id_dict[60823690]
-    new_baron_id = old_id_to_new_effect_id_dict[52900000]
-    script_path = Path(script_new_path, 'c' + str(shade_new_id) + '.lua')
-    new_file_text = ""
-    with open(script_path, encoding="utf8") as file:
-        for line in file:
-            if "e1:SetValue(52900000)" in line:
-                new_file_text += "e1:SetValue(" + str(new_baron_id) + ")\r\n"
-            else:
-                new_file_text += line
-    with open(script_path, 'w', encoding="utf8") as file:
-        file.write(new_file_text)
-    
     # Fix "Shinobaroness Shade Peacock"
-    shade_new_id = old_id_to_new_effect_id_dict[33325951]
-    new_baroness_id = old_id_to_new_effect_id_dict[25415052]
-    script_path = Path(script_new_path, 'c' + str(shade_new_id) + '.lua')
-    new_file_text = ""
-    with open(script_path, encoding="utf8") as file:
-        for line in file:
-            if "e1:SetValue(25415052)" in line:
-                new_file_text += "e1:SetValue(" + str(new_baroness_id) + ")\r\n"
-            else:
-                new_file_text += line
-    with open(script_path, 'w', encoding="utf8") as file:
-        file.write(new_file_text)
+    if 33325951 in old_id_to_new_effect_id_dict and 25415052 in old_id_to_new_effect_id_dict:
+        shade_new_id = old_id_to_new_effect_id_dict[33325951]
+        new_baroness_id = old_id_to_new_effect_id_dict[25415052]
+        script_path = Path(script_new_path, 'c' + str(shade_new_id) + '.lua')
+        new_file_text = ""
+        with open(script_path, encoding="utf8") as file:
+            for line in file:
+                if "e1:SetValue(25415052)" in line:
+                    new_file_text += "e1:SetValue(" + str(new_baroness_id) + ")\r\n"
+                else:
+                    new_file_text += line
+        with open(script_path, 'w', encoding="utf8") as file:
+            file.write(new_file_text)
     
     # Fix "Pyro Clock of Destiny"
-    clock_new_id = old_id_to_new_effect_id_dict[1082946]
-    script_path = Path(script_new_path, 'c' + str(clock_new_id) + '.lua')
-    new_file_text = ""
-    with open(script_path, encoding="utf8") as file:
-        for line in file:
-            if "Card.IsHasEffect" in line or "tc:GetCardEffect" in line:
-                new_file_text += line.replace("id", "1082946")
-            else:
-                new_file_text += line
-    with open(script_path, 'w', encoding="utf8") as file:
-        file.write(new_file_text)
+    if 1082946 in old_id_to_new_effect_id_dict:
+        clock_new_id = old_id_to_new_effect_id_dict[1082946]
+        script_path = Path(script_new_path, 'c' + str(clock_new_id) + '.lua')
+        new_file_text = ""
+        with open(script_path, encoding="utf8") as file:
+            for line in file:
+                if "Card.IsHasEffect" in line or "tc:GetCardEffect" in line:
+                    new_file_text += line.replace("id", "1082946")
+                else:
+                    new_file_text += line
+        with open(script_path, 'w', encoding="utf8") as file:
+            file.write(new_file_text)
     
     # Fix "Double Snare"
-    snare_new_id = old_id_to_new_effect_id_dict[3682106]
-    script_path = Path(script_new_path, 'c' + str(snare_new_id) + '.lua')
-    new_file_text = ""
-    with open(script_path, encoding="utf8") as file:
-        for line in file:
-            if "c:IsHasEffect(id)" in line:
-                new_file_text += line.replace("c:IsHasEffect(id)", "c:IsHasEffect(3682106)")
-            else:
-                new_file_text += line
-    with open(script_path, 'w', encoding="utf8") as file:
-        file.write(new_file_text)
+    if 3682106 in old_id_to_new_effect_id_dict:
+        snare_new_id = old_id_to_new_effect_id_dict[3682106]
+        script_path = Path(script_new_path, 'c' + str(snare_new_id) + '.lua')
+        new_file_text = ""
+        with open(script_path, encoding="utf8") as file:
+            for line in file:
+                if "c:IsHasEffect(id)" in line:
+                    new_file_text += line.replace("c:IsHasEffect(id)", "c:IsHasEffect(3682106)")
+                else:
+                    new_file_text += line
+        with open(script_path, 'w', encoding="utf8") as file:
+            file.write(new_file_text)
     
     # Fix "Void Expansion"
-    void_new_id = old_id_to_new_effect_id_dict[34822850]
-    script_path = Path(script_new_path, 'c' + str(void_new_id) + '.lua')
-    new_file_text = ""
-    with open(script_path, encoding="utf8") as file:
-        for line in file:
-            if "e3:SetCode(id)" in line:
-                new_file_text += line.replace("e3:SetCode(id)", "e3:SetCode(34822850)")
-            else:
-                new_file_text += line
-    with open(script_path, 'w', encoding="utf8") as file:
-        file.write(new_file_text)
+    if 34822850 in old_id_to_new_effect_id_dict:
+        void_new_id = old_id_to_new_effect_id_dict[34822850]
+        script_path = Path(script_new_path, 'c' + str(void_new_id) + '.lua')
+        new_file_text = ""
+        with open(script_path, encoding="utf8") as file:
+            for line in file:
+                if "e3:SetCode(id)" in line:
+                    new_file_text += line.replace("e3:SetCode(id)", "e3:SetCode(34822850)")
+                else:
+                    new_file_text += line
+        with open(script_path, 'w', encoding="utf8") as file:
+            file.write(new_file_text)
         
     # Fix "Chaos Witch"
     # This script doesn't summon tokens the same way others do, so it doesn't get covered by fix_scripts().
-    void_new_id = old_id_to_new_effect_id_dict[30327674]
-    script_path = Path(script_new_path, 'c' + str(void_new_id) + '.lua')
-    new_file_text = ""
-    with open(script_path, encoding="utf8") as file:
-        for line in file:
-            if "id+" in line:
-                new_file_text += line.replace("id+", "30327674+")
-            else:
-                new_file_text += line
-    with open(script_path, 'w', encoding="utf8") as file:
-        file.write(new_file_text)
-    
-    # Fix Monsters that halve their ATK/DEF and have the new values hardcoded. ("Emissary from Pandemonium", "Archfiend Emperor, the First Lord of Horror", "Vice Dragon", "Fusilier Dragon, the Dual-Mode Beast", "Solar Wind Jammer", and "Segmental Dragon".)
-    half_new_ids = [old_id_to_new_effect_id_dict[42685062], old_id_to_new_effect_id_dict[28423537], old_id_to_new_effect_id_dict[54343893], old_id_to_new_effect_id_dict[51632798], old_id_to_new_effect_id_dict[33911264], old_id_to_new_effect_id_dict[15066114]]
-    for id in half_new_ids:
-        script_path = Path(script_new_path, 'c' + str(id) + '.lua')
+    if 30327674 in old_id_to_new_effect_id_dict:
+        void_new_id = old_id_to_new_effect_id_dict[30327674]
+        script_path = Path(script_new_path, 'c' + str(void_new_id) + '.lua')
         new_file_text = ""
         with open(script_path, encoding="utf8") as file:
-            # All of these scripts set ATK before DEF, so this works. It's not completely generic, but it's better than hardcoding the changes to each of these scripts.
-            times_found = 0
             for line in file:
-                if times_found < 2 and re.search(r":SetValue\(\d\d\d+\)", line):
-                    newline = ""
-                    if times_found == 0:
-                        newline = re.sub(r":SetValue\(\d\d\d+\)", r":SetValue(c:GetBaseAttack()/2)", line)
-                    else:
-                        newline = re.sub(r":SetValue\(\d\d\d+\)", r":SetValue(c:GetBaseDefense()/2)", line)
-                    new_file_text += newline
-                    times_found += 1
+                if "id+" in line:
+                    new_file_text += line.replace("id+", "30327674+")
                 else:
                     new_file_text += line
         with open(script_path, 'w', encoding="utf8") as file:
             file.write(new_file_text)
+    
+    # Fix Monsters that halve their ATK/DEF and have the new values hardcoded. ("Emissary from Pandemonium", "Archfiend Emperor, the First Lord of Horror", "Vice Dragon", "Fusilier Dragon, the Dual-Mode Beast", "Solar Wind Jammer", and "Segmental Dragon".)
+    half_old_ids = [42685062, 28423537, 54343893, 51632798, 33911264, 15066114]
+    for id in half_old_ids:
+        if id in old_id_to_new_effect_id_dict:
+            script_path = Path(script_new_path, 'c' + str(id) + '.lua')
+            new_file_text = ""
+            with open(script_path, encoding="utf8") as file:
+                # All of these scripts set ATK before DEF, so this works. It's not completely generic, but it's better than hardcoding the changes to each of these scripts.
+                times_found = 0
+                for line in file:
+                    if times_found < 2 and re.search(r":SetValue\(\d\d\d+\)", line):
+                        newline = ""
+                        if times_found == 0:
+                            newline = re.sub(r":SetValue\(\d\d\d+\)", r":SetValue(c:GetBaseAttack()/2)", line)
+                        else:
+                            newline = re.sub(r":SetValue\(\d\d\d+\)", r":SetValue(c:GetBaseDefense()/2)", line)
+                        new_file_text += newline
+                        times_found += 1
+                    else:
+                        new_file_text += line
+            with open(script_path, 'w', encoding="utf8") as file:
+                file.write(new_file_text)
 
 def tokenize_string(input_string):
     substrings = []
@@ -834,7 +851,7 @@ class YGOScramblerGUI(tk.Frame):
         str15s = [row[17] for row in textsrows]
         str16s = [row[18] for row in textsrows]
         textfields = [old_ids, names, descs, str1s, str2s, str3s, str4s, str5s, str6s, str7s, str8s, str9s, str10s, str11s, str12s, str13s, str14s, str15s, str16s]
-
+        
         # See https://github.com/NaimSantos/DataEditorX/blob/master/DataEditorX/data/cardinfo_english.txt for what the values in these fields correspond to.
         dataids = [row[0] for row in datasrows]         # The card's ID number. This should be identical to old_ids.
         ots = [row[1] for row in datasrows]             # The card's format: OCG, TCG, Rush, custom card, and so on.
@@ -1056,10 +1073,13 @@ class YGOScramblerGUI(tk.Frame):
                 descs[index[i]] = materials[new_ids[index[i]] - PLAYER_ID_OFFSET] + '\n' + '\n'.join(d[1:])
         
         # Some final cleanup on effect text.
+        name_replace_fields = [descs, str1s, str2s, str3s, str4s, str5s, str6s, str7s, str8s, str9s, str10s, str11s, str12s, str13s, str14s, str15s, str16s]
         for i in range(len(new_ids)):
-            # Replace the old card's name with the new card's name in the effect. So effects like hard once-per-turn effects make more sense.
+            # Replace the old card's name with the new card's name in the effect and in the EDO prompts. So effects like hard once-per-turn effects make more sense.
             # Also give all cards extra text at the bottom to say what card their effect originally came from.
-            descs[i] = descs[i].replace(names[i], new_names[i]) + "\r\n\r\n(Effect origin is: " + names[i] + ".)"
+            for s in name_replace_fields:
+                s[i] = s[i].replace(names[i], new_names[i])
+            descs[i] = descs[i] + "\r\n\r\n(Effect origin is: " + names[i] + ".)"
         
         # Connect to the new database.
         conn_new = sqlite3.connect(new_db_path)

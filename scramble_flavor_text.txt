@@ -4,7 +4,7 @@
 ; [X] will be replaced with the name of the card it is on.
 ; [Y] will be replaced with the name of a random Monster card.
 ; Lines starting with ; are comments and will be ignored.
-; If you need a flavor text to span multiple lines, \n functions as a linebreak.
+; If you need a comment to span multiple lines, \n functions as a linebreak.
 
 ===GENERIC===
 I'd put some ancient Egyptian text here if I could.
@@ -97,10 +97,15 @@ Do these materials really make any less sense then the originals?
 
 ===SYNCHRO===
 Synchros: Ruining Yu-Gi-Oh since 2008.
+Maybe Z-ONE was right about Synchros.\n-Wham Bam Duel
 Synchros: Ruining Yu-Gi-Oh since 2008.
+Maybe Z-ONE was right about Synchros.\n-Wham Bam Duel
 Synchros: Ruining Yu-Gi-Oh since 2008.
+Maybe Z-ONE was right about Synchros.\n-Wham Bam Duel
 Synchros: Ruining Yu-Gi-Oh since 2008.
+Maybe Z-ONE was right about Synchros.\n-Wham Bam Duel
 Synchros: Ruining Yu-Gi-Oh since 2008.
+Maybe Z-ONE was right about Synchros.\n-Wham Bam Duel
 
 ===XYZ===
 Xyzs: Ruining Yu-Gi-Oh since 2011.
@@ -123,10 +128,15 @@ Pendulums: Ruining Yu-Gi-Oh since 2014.
 
 ===LINK===
 Links: Ruining Yu-Gi-Oh since 2017.
+Is this the link that searches the Field Spell?
 Links: Ruining Yu-Gi-Oh since 2017.
+Is this the link that searches the Field Spell?
 Links: Ruining Yu-Gi-Oh since 2017.
+Is this the link that searches the Field Spell?
 Links: Ruining Yu-Gi-Oh since 2017.
+Is this the link that searches the Field Spell?
 Links: Ruining Yu-Gi-Oh since 2017.
+Is this the link that searches the Field Spell?
 
 ===SPELL===
 Call it a Magic Card to annoy a Hasbro executive.
