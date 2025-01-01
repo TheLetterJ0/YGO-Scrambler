@@ -430,7 +430,7 @@ def fix_individual_cards(old_id_to_new_effect_id_dict, script_new_path):
             with open(script_path, encoding="utf8") as file:
                 for line in file:
                     if "e1:SetValue(72426662)" in line:
-                        new_file_text += "e1:SetValue(" + str(new_demise_id) + ")\r\n"
+                        new_file_text += "e1:SetValue(" + str(new_og_demise_id) + ")\r\n"
                     else:
                         new_file_text += line
             with open(script_path, 'w', encoding="utf8") as file:
@@ -527,7 +527,7 @@ def fix_individual_cards(old_id_to_new_effect_id_dict, script_new_path):
     half_old_ids = [42685062, 28423537, 54343893, 51632798, 33911264, 15066114]
     for id in half_old_ids:
         if id in old_id_to_new_effect_id_dict:
-            script_path = Path(script_new_path, 'c' + str(id) + '.lua')
+            script_path = Path(script_new_path, 'c' + str(old_id_to_new_effect_id_dict[id]) + '.lua')
             new_file_text = ""
             with open(script_path, encoding="utf8") as file:
                 # All of these scripts set ATK before DEF, so this works. It's not completely generic, but it's better than hardcoding the changes to each of these scripts.
@@ -787,9 +787,9 @@ class YGOScramblerGUI(tk.Frame):
         new_db_path = Path(Path.cwd(), 'P' + str(player_number) + 'Scrambled.cdb')
         db_path_for_opponent = Path(Path.cwd(), 'P' + str(player_number) + 'ScrambledForOpponent.cdb')
         img_new_path = Path(ignis_dir, 'pics')
-        script_old_path1 = Path(ignis_dir, 'script\\official')
-        script_old_path2 = Path(ignis_dir, 'repositories\\delta-puppet\\script\\official')
-        script_new_path = Path(ignis_dir, 'script\\custom_scrambled')
+        script_old_path1 = Path(ignis_dir, 'script', 'official')
+        script_old_path2 = Path(ignis_dir, 'repositories', 'delta-puppet', 'script', 'official')
+        script_new_path = Path(ignis_dir, 'script', 'custom_scrambled')
         
         match player_number:
             case 1:
