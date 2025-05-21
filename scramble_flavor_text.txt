@@ -1,47 +1,56 @@
 ; ===INSTRUCTIONS===
 ; Place each flavor text in its own line under the appropriate section.
-; Cards that fall into more than one category will use all of the appropriate category. So a Synchro Pendulum Monster can get a flavor text from the generic, monster, syncro, or pendulum sections.
+; Cards that fall into more than one category will use all of the appropriate categories. So a Synchro Pendulum Monster can get a flavor text from the Generic, Monster, Syncro, or Pendulum sections.
 ; [X] will be replaced with the name of the card it is on.
 ; [Y] will be replaced with the name of a random Monster card.
 ; Lines starting with ; are comments and will be ignored.
 ; If you need a flavor text to span multiple lines, \n functions as a linebreak.
+; Some categories have their flavor texts repeated to make them more likely to appear, since there are so many more in the more generic categories that will otherwise drown them out.
 
 ===GENERIC===
 I'd put some ancient Egyptian text here if I could.
 The problem with using Duel Disks is that you can't read your opponent's cards from 30 feet away.
+The problem with dueling on motorcycles is that it is unsafe to read cards while driving.\n\nYes, that is the only problem.
 Let's be honest. You wouldn't read this card even if you could.
 You don't know what this card does. But since your opponent bothered to play it, it must be good, right?
 Don't worry about this card. It doesn't do anything important. I promise.
 This card's effect was too hot for the TCG.
 We've moved beyond censoring card arts and have started censoring effects.
 Before you take your opponent's card, remember what happened to Mai when she stole Ra.
-This is card brought to you by the Heart of the Cards.
+This card is brought to you by the Heart of the Cards.
 Surely this card will get a retrain someday.
 Be careful. This card might have a secret effect.
 Statistically speaking, there is someone who lost to this card once and has been calling for its ban ever since.
-I'm sorry, but the the Great Leviathan said it doesn't want your soul after all.
-You could try using the Millennium Eye to read your opponent's mind to find out what this card does, but I really don't recomment it. Just trust me on this.
+I'm sorry, but the Great Leviathan said it doesn't want your soul after all.
+If you want to find out what this card does, you could try using the Millennium Eye to read your opponent's mind. But I really don't recommend it. Just trust me on this.
 This card is great in Forbidden Memories.
-Konami, please implement this format in Master Duel.
+There is nothing stopping Konami from implementing this format in Master Duel.
 Have you ever even seen this card before?
 This is Yu-Gi-Oh the way Kazuki Takahashi intended.
-This card can FTK when used with [Y].
+I hear this card can FTK when used with [Y].
 ...except "Frog the Jam".
-#FreePity
+#FreeDipity
 Is this the fabled "The Out" you've heard so much about?
 Which part of the Duel Terminal storyline was this?
 This card was better under Duelist Kingdom rules.
-I apologize to all the fans of Nekroz, Megalith, Assault Mode, and all the other cards that just don't work because of how this format works.
-I could be testing for more bugs. Instead, I wrote flavor text.
+I am sorry if your favorite card no longer works, but that is a sacrifice that I am willing to make.
+I could be adding features or testing for more bugs. Instead, I wrote flavor text.
 This card would be good in limited.
 This card has a real card's effect, so it can't be broken. Right?
 Pegasus handcrafted every single one of these cards.
 This card was designed by Chumley.
 I think I saw this in a Gradius game once.
-Fun Fact: The OCG version of this card includes a war crime.
+You don't want to see the uncensored OCG art of this card.
 Yusei found this card in a dumpster.
 Sometimes, reading the card does not explain the card.
 Yugi never stopped to read an opponent's card.
+Board wipes, monsters being reborned from the GY, monsters being tributed, Melffy and Purrely being played together, mass hysteria!
+If you can't deal with this card, throwing it off a boat is always an option.
+My spreadsheets never prepared me for this!
+Just be glad you can still read your own cards. Unless...
+Jaden was right. They never taught this in class.
+Sorry, but at this Duel Academy, all of your exams are closed-book.
+Your chances of having your soul taken by this card are low, but never zero.
 
 ===MONSTER===
 Haste\nVigilance\nTrample\n[X] must be blocked if able.\n[X] or another creature you control must block every attacking creature if able.
@@ -53,7 +62,7 @@ Keep an eye out for my [X]/[Y] fanfic coming soon!
 [X] has chosen itself to become your Deck Master.
 [X]'s battle prowess is easily matched and can be safely ignored.
 [X] wears the skull of its deceased mother. Its cries echo inside the skull and come out as a sad melody.
-Gagagigo will probably fight this at some point.
+Gagagigo will probably fight [X] at some point.
 Would. Next question.
 Someone at my locals uses a playmat featuring [X] in a maid outfit. Should I be concerned?
 If you destroy [X], its Duel Spirit will haunt you.
@@ -65,9 +74,11 @@ You're the one who wants to destroy [X], so who's the real monster?
 [X] might actually be an Ojama in disguise.
 Did you know that in terms of Duel Spirit breeding, [X] is the most compatible...
 The [X] Duel Spirit probably seemed pretty out of place in ancient Egypt.
-I would make a Capsule Monsters joke here, but I've never seen it, and you probably haven't either.
-
-; The categories below repeat their flavor texts to make them more likely to appear, since there are so many more in the generic category.
+I would make a Capsule Monsters joke here, but I've never seen it. And you probably haven't either.
+The Rush Duel retrain of [X] is probably a magical girl.
+Can I use [X] as my new VTuber persona?
+Where's my [X] Chronicles animation, Konami?
+I hear Duel Academy is building a [X] Dorm.
 
 ===RITUAL MONSTER===
 Rituals: Ruined by Yu-Gi-Oh since 2002.
@@ -81,33 +92,33 @@ Rituals: Ruined by Yu-Gi-Oh since 2002.
 Rituals: Ruined by Yu-Gi-Oh since 2002.
 [X] wishes it could live in the Extra Deck.
 
-===FUSION===
+===FUSION MONSTER===
 Fusions: Ruining Yu-Gi-Oh since 2002.
 Does naming "Fallen of Albaz" in this flavor text count?
-Do these materials really make any less sense then the originals?
+Do these materials really make any less sense than the originals?
 Fusions: Ruining Yu-Gi-Oh since 2002.
 Does naming "Fallen of Albaz" in this flavor text count?
-Do these materials really make any less sense then the originals?
+Do these materials really make any less sense than the originals?
 Fusions: Ruining Yu-Gi-Oh since 2002.
 Does naming "Fallen of Albaz" in this flavor text count?
-Do these materials really make any less sense then the originals?
+Do these materials really make any less sense than the originals?
 Fusions: Ruining Yu-Gi-Oh since 2002.
 Does naming "Fallen of Albaz" in this flavor text count?
-Do these materials really make any less sense then the originals?
+Do these materials really make any less sense than the originals?
 
-===SYNCHRO===
+===SYNCHRO MONSTER===
 Synchros: Ruining Yu-Gi-Oh since 2008.
-Maybe Z-ONE was right about Synchros.\n-Wham Bam Duel
+Maybe Z-ONE was right about Synchros.
 Synchros: Ruining Yu-Gi-Oh since 2008.
-Maybe Z-ONE was right about Synchros.\n-Wham Bam Duel
+Maybe Z-ONE was right about Synchros.
 Synchros: Ruining Yu-Gi-Oh since 2008.
-Maybe Z-ONE was right about Synchros.\n-Wham Bam Duel
+Maybe Z-ONE was right about Synchros.
 Synchros: Ruining Yu-Gi-Oh since 2008.
-Maybe Z-ONE was right about Synchros.\n-Wham Bam Duel
+Maybe Z-ONE was right about Synchros.
 Synchros: Ruining Yu-Gi-Oh since 2008.
-Maybe Z-ONE was right about Synchros.\n-Wham Bam Duel
+Maybe Z-ONE was right about Synchros.
 
-===XYZ===
+===XYZ MONSTER===
 Xyzs: Ruining Yu-Gi-Oh since 2011.
 I'd put some Astral Glyphs here if I could.
 Xyzs: Ruining Yu-Gi-Oh since 2011.
@@ -119,33 +130,43 @@ I'd put some Astral Glyphs here if I could.
 Xyzs: Ruining Yu-Gi-Oh since 2011.
 I'd put some Astral Glyphs here if I could.
 
-===PENDULUM===
+===PENDULUM MONSTER===
 Pendulums: Ruining Yu-Gi-Oh since 2014.
+Look, Pendulums have been part of the game for nearly half of its existence. At some point, you're going to have to learn how they work.
 Pendulums: Ruining Yu-Gi-Oh since 2014.
+Look, Pendulums have been part of the game for nearly half of its existence. At some point, you're going to have to learn how they work.
 Pendulums: Ruining Yu-Gi-Oh since 2014.
+Look, Pendulums have been part of the game for nearly half of its existence. At some point, you're going to have to learn how they work.
 Pendulums: Ruining Yu-Gi-Oh since 2014.
+Look, Pendulums have been part of the game for nearly half of its existence. At some point, you're going to have to learn how they work.
 Pendulums: Ruining Yu-Gi-Oh since 2014.
+Look, Pendulums have been part of the game for nearly half of its existence. At some point, you're going to have to learn how they work.
 
-===LINK===
+===LINK MONSTER===
 Links: Ruining Yu-Gi-Oh since 2017.
-Is this the link that searches the Field Spell?
+Is this the Link that searches the Field Spell?
+What kind of data storm could generate THIS?!
 Links: Ruining Yu-Gi-Oh since 2017.
-Is this the link that searches the Field Spell?
+Is this the Link that searches the Field Spell?
+What kind of data storm could generate THIS?!
 Links: Ruining Yu-Gi-Oh since 2017.
-Is this the link that searches the Field Spell?
+Is this the Link that searches the Field Spell?
+What kind of data storm could generate THIS?!
 Links: Ruining Yu-Gi-Oh since 2017.
-Is this the link that searches the Field Spell?
+Is this the Link that searches the Field Spell?
+What kind of data storm could generate THIS?!
 Links: Ruining Yu-Gi-Oh since 2017.
-Is this the link that searches the Field Spell?
+Is this the Link that searches the Field Spell?
+What kind of data storm could generate THIS?!
 
 ===SPELL===
-Call it a Magic Card to annoy a Hasbro executive.
-Call it a Magic Card to annoy a Hasbro executive.
-Call it a Magic Card to annoy a Hasbro executive.
-Call it a Magic Card to annoy a Hasbro executive.
-Call it a Magic Card to annoy a Hasbro executive.
+Call this a Magic Card to annoy a Hasbro executive.
+Call this a Magic Card to annoy a Hasbro executive.
+Call this a Magic Card to annoy a Hasbro executive.
+Call this a Magic Card to annoy a Hasbro executive.
+Call this a Magic Card to annoy a Hasbro executive.
 
-===EQUIP===
+===EQUIP SPELL===
 "You have my sword."\n"And you have my bow."\n"And my [X]."
 Anyway, here's "Wonder Wand".
 "You have my sword."\n"And you have my bow."\n"And my [X]."
@@ -157,7 +178,7 @@ Anyway, here's "Wonder Wand".
 "You have my sword."\n"And you have my bow."\n"And my [X]."
 Anyway, here's "Wonder Wand".
 
-===FIELD===
+===FIELD SPELL===
 Still looks better than my last Airbnb.
 Still looks better than my last Airbnb.
 Still looks better than my last Airbnb.
@@ -165,7 +186,11 @@ Still looks better than my last Airbnb.
 Still looks better than my last Airbnb.
 
 ===CONTINUOUS SPELL===
-; I haven't thought of anything funny enough to put here yet.
+Surely turning some Field Spells into Continuous Spells won't break anything, right?
+Surely turning some Field Spells into Continuous Spells won't break anything, right?
+Surely turning some Field Spells into Continuous Spells won't break anything, right?
+Surely turning some Field Spells into Continuous Spells won't break anything, right?
+Surely turning some Field Spells into Continuous Spells won't break anything, right?
 
 ===RITUAL SPELL===
 That's right! I'll sacrifice [Y]!
@@ -174,29 +199,38 @@ That's right! I'll sacrifice [Y]!
 That's right! I'll sacrifice [Y]!
 That's right! I'll sacrifice [Y]!
 
-===QUICKPLAY===
-; I haven't thought of anything funny enough to put here yet.
+===QUICK-PLAY SPELL===
+Surely turning some Traps into Quick-Play Spells won't break anything, right?
+Surely turning some Traps into Quick-Play Spells won't break anything, right?
+Surely turning some Traps into Quick-Play Spells won't break anything, right?
+Surely turning some Traps into Quick-Play Spells won't break anything, right?
+Surely turning some Traps into Quick-Play Spells won't break anything, right?
 
 ===TRAP===
 Any Trap can be a handtrap if you're sneaky enough.
 This Trap deals emotional damage.
+Back in my day, traps were activated after being set on the field. Not from the grave, or hand, or deck, or...
 Any Trap can be a handtrap if you're sneaky enough.
 This Trap deals emotional damage.
+Back in my day, traps were activated after being set on the field. Not from the grave, or hand, or deck, or...
 Any Trap can be a handtrap if you're sneaky enough.
 This Trap deals emotional damage.
+Back in my day, traps were activated after being set on the field. Not from the grave, or hand, or deck, or...
 Any Trap can be a handtrap if you're sneaky enough.
 This Trap deals emotional damage.
+Back in my day, traps were activated after being set on the field. Not from the grave, or hand, or deck, or...
 Any Trap can be a handtrap if you're sneaky enough.
 This Trap deals emotional damage.
+Back in my day, traps were activated after being set on the field. Not from the grave, or hand, or deck, or...
 
 ===CONTINUOUS TRAP===
-This might not be a floodgate.
-This might not be a floodgate.
-This might not be a floodgate.
-This might not be a floodgate.
-This might not be a floodgate.
+Continuous Traps aren't always floodgates, right?
+Continuous Traps aren't always floodgates, right?
+Continuous Traps aren't always floodgates, right?
+Continuous Traps aren't always floodgates, right?
+Continuous Traps aren't always floodgates, right?
 
-===COUNTER===
+===COUNTER TRAP===
 [Y] says no.
 [Y] says no.
 [Y] says no.
