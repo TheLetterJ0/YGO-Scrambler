@@ -78,7 +78,7 @@ I would make a Capsule Monsters joke here, but I've never seen it. And you proba
 The Rush Duel retrain of [X] is probably a magical girl.
 Can I use [X] as my new VTuber persona?
 Where's my [X] Chronicles animation, Konami?
-I hear Duel Academy is building a [X] Dorm.
+I hear Duel Academy is building a new dorm named after [X].
 
 ===RITUAL MONSTER===
 Rituals: Ruined by Yu-Gi-Oh since 2002.
@@ -169,21 +169,26 @@ Call this a Magic Card to annoy a Hasbro executive.
 ===EQUIP SPELL===
 "You have my sword."\n"And you have my bow."\n"And my [X]."
 Anyway, here's "Wonder Wand".
+It's dangerous to duel alone! Take this.
 "You have my sword."\n"And you have my bow."\n"And my [X]."
 Anyway, here's "Wonder Wand".
+It's dangerous to duel alone! Take this.
 "You have my sword."\n"And you have my bow."\n"And my [X]."
 Anyway, here's "Wonder Wand".
+It's dangerous to duel alone! Take this.
 "You have my sword."\n"And you have my bow."\n"And my [X]."
 Anyway, here's "Wonder Wand".
+It's dangerous to duel alone! Take this.
 "You have my sword."\n"And you have my bow."\n"And my [X]."
 Anyway, here's "Wonder Wand".
+It's dangerous to duel alone! Take this.
 
 ===FIELD SPELL===
-Still looks better than my last Airbnb.
-Still looks better than my last Airbnb.
-Still looks better than my last Airbnb.
-Still looks better than my last Airbnb.
-Still looks better than my last Airbnb.
+At least this looks better than my last Airbnb.
+At least this looks better than my last Airbnb.
+At least this looks better than my last Airbnb.
+At least this looks better than my last Airbnb.
+At least this looks better than my last Airbnb.
 
 ===CONTINUOUS SPELL===
 Surely turning some Field Spells into Continuous Spells won't break anything, right?
@@ -209,19 +214,19 @@ Surely turning some Traps into Quick-Play Spells won't break anything, right?
 ===TRAP===
 Any Trap can be a handtrap if you're sneaky enough.
 This Trap deals emotional damage.
-Back in my day, traps were activated after being set on the field. Not from the grave, or hand, or deck, or...
+Back in my day, Traps were activated after being set on the field. Not from the grave, or hand, or deck, or...
 Any Trap can be a handtrap if you're sneaky enough.
 This Trap deals emotional damage.
-Back in my day, traps were activated after being set on the field. Not from the grave, or hand, or deck, or...
+Back in my day, Traps were activated after being set on the field. Not from the grave, or hand, or deck, or...
 Any Trap can be a handtrap if you're sneaky enough.
 This Trap deals emotional damage.
-Back in my day, traps were activated after being set on the field. Not from the grave, or hand, or deck, or...
+Back in my day, Traps were activated after being set on the field. Not from the grave, or hand, or deck, or...
 Any Trap can be a handtrap if you're sneaky enough.
 This Trap deals emotional damage.
-Back in my day, traps were activated after being set on the field. Not from the grave, or hand, or deck, or...
+Back in my day, Traps were activated after being set on the field. Not from the grave, or hand, or deck, or...
 Any Trap can be a handtrap if you're sneaky enough.
 This Trap deals emotional damage.
-Back in my day, traps were activated after being set on the field. Not from the grave, or hand, or deck, or...
+Back in my day, Traps were activated after being set on the field. Not from the grave, or hand, or deck, or...
 
 ===CONTINUOUS TRAP===
 Continuous Traps aren't always floodgates, right?

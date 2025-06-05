@@ -7,10 +7,13 @@ import os
 import re
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
+import webbrowser
 from multiprocessing.dummy import Pool as ThreadPool
 import tqdm
 from functools import partial
 from ratelimit import limits, sleep_and_retry
+
+VERSION_NUMBER = "v1.3.0"
 
 PLAYER_1_OFFSET = 3100000000
 PLAYER_2_OFFSET = 3200000000
@@ -399,33 +402,35 @@ def fix_individual_cards(old_id_to_new_effect_id_dict, script_new_path):
     if 46427957 in old_id_to_new_effect_id_dict:
         new_og_ruin_id = old_id_to_new_effect_id_dict[46427957]
         for old_ruin_id in [50139096, 13518809]:
-            ruin_new_id = old_id_to_new_effect_id_dict[old_ruin_id]
-            script_path = Path(script_new_path, 'c' + str(ruin_new_id) + '.lua')
-            new_file_text = ""
-            with open(script_path, encoding="utf8") as file:
-                for line in file:
-                    if "e1:SetValue(46427957)" in line:
-                        new_file_text += "e1:SetValue(" + str(new_og_ruin_id) + ")\r\n"
-                    else:
-                        new_file_text += line
-            with open(script_path, 'w', encoding="utf8") as file:
-                file.write(new_file_text)
+            if old_ruin_id in old_id_to_new_effect_id_dict:
+                ruin_new_id = old_id_to_new_effect_id_dict[old_ruin_id]
+                script_path = Path(script_new_path, 'c' + str(ruin_new_id) + '.lua')
+                new_file_text = ""
+                with open(script_path, encoding="utf8") as file:
+                    for line in file:
+                        if "e1:SetValue(46427957)" in line:
+                            new_file_text += "e1:SetValue(" + str(new_og_ruin_id) + ")\r\n"
+                        else:
+                            new_file_text += line
+                with open(script_path, 'w', encoding="utf8") as file:
+                    file.write(new_file_text)
     
     # Fix "Demise, Agent of Armageddon" and "Demise, Supreme King of Armageddon"
     if 72426662 in old_id_to_new_effect_id_dict:
         new_og_demise_id = old_id_to_new_effect_id_dict[72426662]
         for old_demise_id in [86124104, 59913418]:
-            demise_new_id = old_id_to_new_effect_id_dict[old_demise_id]
-            script_path = Path(script_new_path, 'c' + str(demise_new_id) + '.lua')
-            new_file_text = ""
-            with open(script_path, encoding="utf8") as file:
-                for line in file:
-                    if "e1:SetValue(72426662)" in line:
-                        new_file_text += "e1:SetValue(" + str(new_og_demise_id) + ")\r\n"
-                    else:
-                        new_file_text += line
-            with open(script_path, 'w', encoding="utf8") as file:
-                file.write(new_file_text)
+            if old_demise_id in old_id_to_new_effect_id_dict:
+                demise_new_id = old_id_to_new_effect_id_dict[old_demise_id]
+                script_path = Path(script_new_path, 'c' + str(demise_new_id) + '.lua')
+                new_file_text = ""
+                with open(script_path, encoding="utf8") as file:
+                    for line in file:
+                        if "e1:SetValue(72426662)" in line:
+                            new_file_text += "e1:SetValue(" + str(new_og_demise_id) + ")\r\n"
+                        else:
+                            new_file_text += line
+                with open(script_path, 'w', encoding="utf8") as file:
+                    file.write(new_file_text)
     
     # Fix "Shinobaron Shade Peacock"
     if 60823690 in old_id_to_new_effect_id_dict and 52900000 in old_id_to_new_effect_id_dict:
@@ -706,6 +711,31 @@ def create_banlist_file(new_ids, lflist_path, pool_size, seed):
     with open(Path(lflist_path, "scramble.lflist.conf"), 'w', encoding="utf8") as file:
         file.write(text)
 
+def banlist_file_filter(banlist_file, id_list):
+    allowed_id_set = set()
+    banned_id_set = set()
+    is_whitelist = False
+    if os.path.exists(banlist_file):
+        with open(banlist_file) as file:
+            for line in file:
+                tokens = line.split()
+                if not is_whitelist and len(tokens) >= 1 and tokens[0] == "$whitelist":
+                    is_whitelist = True
+                elif len(tokens) >= 2 and tokens[0].isdigit() and tokens[1].isdigit():
+                    banlist_id = int(tokens[0])
+                    if tokens[1] == '0':
+                        banned_id_set.add(banlist_id)
+                        allowed_id_set.discard(banlist_id)
+                    else:
+                        allowed_id_set.add(banlist_id)
+                        banned_id_set.discard(banlist_id)
+    else:
+        return id_list
+    if is_whitelist:
+        return list(allowed_id_set & set(id_list))
+    else:
+        return list(set(id_list) - banned_id_set)
+
 class YGOScramblerGUI(tk.Frame):
     def __init__(self, parent, *args, **kwargs):
         tk.Frame.__init__(self, parent, *args, **kwargs)
@@ -713,7 +743,7 @@ class YGOScramblerGUI(tk.Frame):
 
         # Initialize the main window
         parent.title("Yugioh Card Scrambler")
-        parent.geometry("420x390")
+        parent.geometry("420x445")
         parent.resizable(False, False)
 
         main = tk.ttk.Notebook(parent)
@@ -721,29 +751,46 @@ class YGOScramblerGUI(tk.Frame):
 
         scramble_tab = tk.Frame(main)
         delete_tab = tk.Frame(main)
+        help_tab = tk.Frame(main)
         main.add(scramble_tab, text="Scramble")
         main.add(delete_tab, text="Delete")
+        main.add(help_tab, text="Help")
 
-        # An up to date cards.cdb file can be downloaded at https://github.com/ProjectIgnis/BabelCDB/blob/master/cards.cdb
+        row_counter = 0
+
         # .cdb file selection
-        tk.Label(scramble_tab, text="Select your .cdb file:").grid(row=0, column=0, sticky="w", padx=5, pady=(5,0))
+        tk.Label(scramble_tab, text="Select your .cdb file:").grid(row=row_counter, column=0, sticky="w", padx=5, pady=(5,0))
+        row_counter += 1
         self.cdb_path = tk.StringVar()
-        tk.Entry(scramble_tab, textvariable=self.cdb_path, width=50).grid(row=1, column=0, sticky="w", padx=13)
-        tk.Button(scramble_tab, text="Browse", command=self.select_file, width=10).grid(row=1, column=1, sticky="w")
+        tk.Entry(scramble_tab, textvariable=self.cdb_path, width=50).grid(row=row_counter, column=0, sticky="w", padx=13)
+        tk.Button(scramble_tab, text="Browse", command=self.select_cdb_file, width=10).grid(row=row_counter, column=1, sticky="w")
+        row_counter += 1
 
         # ProjectIgnis directory selection
-        tk.Label(scramble_tab, text="Select your ProjectIgnis directory:").grid(row=2, column=0, sticky="w", padx=5, pady=(5,0))
+        tk.Label(scramble_tab, text="Select your ProjectIgnis directory:").grid(row=row_counter, column=0, sticky="w", padx=5, pady=(5,0))
+        row_counter += 1
         self.ignis_dir_path = tk.StringVar()
-        tk.Entry(scramble_tab, textvariable=self.ignis_dir_path, width=50).grid(row=3, column=0, sticky="w", padx=13)
-        tk.Button(scramble_tab, text="Browse", command=self.select_directory, width=10).grid(row=3, column=1, sticky="w")
+        tk.Entry(scramble_tab, textvariable=self.ignis_dir_path, width=50).grid(row=row_counter, column=0, sticky="w", padx=13)
+        tk.Button(scramble_tab, text="Browse", command=self.select_directory, width=10).grid(row=row_counter, column=1, sticky="w")
+        row_counter += 1
+
+        # Banlist file selection
+        tk.Label(scramble_tab, text="Select your banlist file (optional):").grid(row=row_counter, column=0, sticky="w", padx=5, pady=(5,0))
+        row_counter += 1
+        self.banlist_path = tk.StringVar()
+        tk.Entry(scramble_tab, textvariable=self.banlist_path, width=50).grid(row=row_counter, column=0, sticky="w", padx=13)
+        tk.Button(scramble_tab, text="Browse", command=self.select_banlist_file, width=10).grid(row=row_counter, column=1, sticky="w")
+        row_counter += 1
 
         # Dropdown box to select player number
-        tk.Label(scramble_tab, text="Select your player number:").grid(row=4, column=0, sticky="w", padx=5, pady=(5,0))
+        tk.Label(scramble_tab, text="Select your player number:").grid(row=row_counter, column=0, sticky="w", padx=5, pady=(5,0))
+        row_counter += 1
         self.player_number = tk.IntVar(value=1)
         # Uncomment when support for more than 2 players is implemented.
         #self.player_number_dropdown = tk.ttk.Combobox(scramble_tab, textvariable=self.player_number, values=list(range(1, 11)), width=3)
         self.player_number_dropdown = tk.ttk.Combobox(scramble_tab, state="readonly", textvariable=self.player_number, values=list(range(1, 3)), width=3)
-        self.player_number_dropdown.grid(row=5, column=0, padx=13, sticky="w")
+        self.player_number_dropdown.grid(row=row_counter, column=0, padx=13, sticky="w")
+        row_counter += 1
         self.player_number_dropdown.current(0)
         self.player_number_dropdown.bind("<<ComboboxSelected>>", self.player_selected)
 
@@ -761,16 +808,22 @@ class YGOScramblerGUI(tk.Frame):
         # self.opponent_checkboxes[0].config(state=tk.DISABLED)
 
         # Checkboxes for merging card categories
-        tk.Label(scramble_tab, text="Select categories of cards to merge (optional):").grid(row=6, column=0, sticky="w", padx=5, pady=(5,0))
+        tk.Label(scramble_tab, text="Select categories of cards to merge (optional):").grid(row=row_counter, column=0, sticky="w", padx=5, pady=(5,0))
+        row_counter += 1
         self.merge_choices = [tk.IntVar() for _ in range(4)]
-        tk.Checkbutton(scramble_tab, text="Fusion and Synchro Monsters", variable=self.merge_choices[0]).grid(row=7, column=0, sticky="w", padx=13)
-        tk.Checkbutton(scramble_tab, text="Normal and Ritual Spells", variable=self.merge_choices[1]).grid(row=8, column=0, sticky="w", padx=13)
-        tk.Checkbutton(scramble_tab, text="Field and Continuous Spells", variable=self.merge_choices[2]).grid(row=9, column=0, sticky="w", padx=13)
-        tk.Checkbutton(scramble_tab, text="Normal Traps and Quick-Play Spells", variable=self.merge_choices[3]).grid(row=10, column=0, sticky="w", padx=13)
+        tk.Checkbutton(scramble_tab, text="Fusion and Synchro Monsters", variable=self.merge_choices[0]).grid(row=row_counter, column=0, sticky="w", padx=13)
+        row_counter += 1
+        tk.Checkbutton(scramble_tab, text="Normal and Ritual Spells", variable=self.merge_choices[1]).grid(row=row_counter, column=0, sticky="w", padx=13)
+        row_counter += 1
+        tk.Checkbutton(scramble_tab, text="Field and Continuous Spells", variable=self.merge_choices[2]).grid(row=row_counter, column=0, sticky="w", padx=13)
+        row_counter += 1
+        tk.Checkbutton(scramble_tab, text="Normal Traps and Quick-Play Spells", variable=self.merge_choices[3]).grid(row=row_counter, column=0, sticky="w", padx=13)
+        row_counter += 1
 
         # Option to randomize monster stats
         random_frame = tk.Frame(scramble_tab)
-        random_frame.grid(row=11, column=0, sticky="w", pady=(5,0))
+        random_frame.grid(row=row_counter, column=0, sticky="w", pady=(5,0))
+        row_counter += 1
         tk.Label(random_frame, text="Change monster stats?").grid(row=0, column=0, sticky="w", padx=5, pady=(0,0))
         self.extra_random = tk.StringVar(value="Don't change stats")
         self.extra_random_dropdown = tk.ttk.Combobox(random_frame, state="readonly", textvariable=self.extra_random, values=list(["Don't change stats", "Shuffle stats", "Randomize stats"]))
@@ -785,16 +838,17 @@ class YGOScramblerGUI(tk.Frame):
             return True
 
         # Limit number of cards
-        tk.Label(scramble_tab, text="Size of card pool to allow (0 for no limit):").grid(row=12, column=0, sticky="w", padx=5, pady=(5,0))
+        tk.Label(scramble_tab, text="Size of card pool to allow (0 for no limit):").grid(row=row_counter, column=0, sticky="w", padx=5, pady=(5,0))
         self.pool_size = tk.StringVar()
         self.pool_size.set(0)
         size_entry = tk.Entry(scramble_tab, validate="key", textvariable = self.pool_size, width=13)
         size_entry['validatecommand'] = (size_entry.register(testVal),'%P','%d')
-        size_entry.grid(row=12, column=1, sticky="w")
+        size_entry.grid(row=row_counter, column=1, sticky="w")
+        row_counter += 1
 
         # Seed entry
         seed_frame = tk.Frame(scramble_tab)
-        seed_frame.grid(row=13, column=0, sticky="w", pady=(5,0))
+        seed_frame.grid(row=row_counter, column=0, sticky="w", pady=(5,0))
         tk.Label(seed_frame, text="Your seed:").grid(row=0, column=0, sticky="w", padx=5)
         self.seed = tk.StringVar()
         self.seed.set(random.randrange(0, 9_999_999_999)) # Ten digits should be way more than enough for a seed.
@@ -803,16 +857,21 @@ class YGOScramblerGUI(tk.Frame):
         seed_entry.grid(row=0, column=1, sticky="w")
 
         # Scramble button
-        tk.Button(scramble_tab, text="Scramble!", command=self.scramble, width=10).grid(row=13, column=1, sticky="e", pady=(5,0))
+        tk.Button(scramble_tab, text="Scramble!", command=self.scramble, width=10).grid(row=row_counter, column=1, sticky="e", pady=(5,0))
+        
 
         # Delete tab
-        tk.Label(delete_tab, justify="left", text="Use this to clean up custom files from a previous scramble.\nThis is NOT necessary to do before creating a new scramble.").grid(row=0, column=0, sticky="w", padx=5, pady=(5,0))
+        row_counter = 0
+        tk.Label(delete_tab, justify="left", text="Use this to clean up custom files from a previous scramble.\nThis is NOT necessary to do before creating a new scramble.").grid(row=row_counter, column=0, sticky="w", padx=5, pady=(5,0))
+        row_counter += 1
         
         # .cdb file selection
-        tk.Label(delete_tab, text="Select the scrambled .cdb file, or the original .cdb used to generate it:").grid(row=1, column=0, sticky="w", padx=5, pady=(5,0))
+        tk.Label(delete_tab, text="Select the scrambled .cdb file, or the original .cdb used to generate it:").grid(row=row_counter, column=0, sticky="w", padx=5, pady=(5,0))
+        row_counter += 1
         self.cdb_del_path = tk.StringVar()
         file_selection_frame = tk.Frame(delete_tab)
-        file_selection_frame.grid(row=2, column=0, sticky="w", pady=(0,0))
+        file_selection_frame.grid(row=row_counter, column=0, sticky="w", pady=(0,0))
+        row_counter += 1
         tk.Entry(file_selection_frame, textvariable=self.cdb_del_path, width=50).grid(row=0, column=0, sticky="w", padx=13)
         tk.Button(file_selection_frame, text="Browse", command=self.select_del_file, width=10).grid(row=0, column=1, sticky="w")
 
@@ -823,21 +882,46 @@ class YGOScramblerGUI(tk.Frame):
         tk.Button(file_selection_frame, text="Browse", command=self.select_del_directory, width=10).grid(row=2, column=1, sticky="w")
 
         # Checkboxes for what to delete
-        tk.Label(delete_tab, text="Select which files to delete:").grid(row=3, column=0, sticky="w", padx=5, pady=(5,0))
+        tk.Label(delete_tab, text="Select which files to delete:").grid(row=row_counter, column=0, sticky="w", padx=5, pady=(5,0))
+        row_counter += 1
         delete_boxes_frame = tk.Frame(delete_tab)
-        delete_boxes_frame.grid(row=4, column=0, sticky="w", pady=(5,0))
+        delete_boxes_frame.grid(row=row_counter, column=0, sticky="w", pady=(5,0))
+        row_counter += 1
         self.delete_choices = [tk.IntVar() for _ in range(4)]
         tk.Checkbutton(delete_boxes_frame, text="Scripts", variable=self.delete_choices[0]).grid(row=0, column=0, sticky="w", padx=13)
         tk.Checkbutton(delete_boxes_frame, text="Card images", variable=self.delete_choices[1]).grid(row=0, column=1, sticky="w", padx=13)
         tk.Checkbutton(delete_boxes_frame, text="Banlist file", variable=self.delete_choices[2]).grid(row=1, column=0, sticky="w", padx=13)
         tk.Checkbutton(delete_boxes_frame, text="Scrambled .cdb file", variable=self.delete_choices[3]).grid(row=1, column=1, sticky="w", padx=13)
 
-        tk.Label(delete_tab, justify="left", text="Files for your opponent of the selected type(s) will be deleted too, if present.\n\nNote that images are not unique to a scramble, and will need to be recopied\nor redownloaded by the scrambler if you use it again.").grid(row=5, column=0, sticky="w", padx=5, pady=(5,0))
+        tk.Label(delete_tab, justify="left", text="Files for your opponent of the selected type(s) will be deleted too, if present.\n\nNote that images are not unique to a scramble, and will need to be recopied\nor redownloaded by the scrambler if you use it again.").grid(row=row_counter, column=0, sticky="w", padx=5, pady=(5,0))
+        row_counter += 1
 
         # Delete button
-        tk.Button(delete_tab, text="Delete", command=self.delete, width=10).grid(row=6, column=0, sticky="e", padx=5, pady=(5,0))
+        tk.Button(delete_tab, text="Delete", command=self.delete, width=10).grid(row=row_counter, column=0, sticky="e", padx=5, pady=(5,0))
+
+
+        # Help tab
+        row_counter = 0
+        readme_link = tk.Label(help_tab, text="Click here to view the README file for detailed instructions.", fg="blue", cursor="hand2")
+        readme_link.grid(row=row_counter, column=0, sticky="w", padx=5, pady=(5,0))
+        readme_link.bind("<Button-1>", lambda e: self.open_link(r"https://github.com/TheLetterJ0/YGO-Scrambler/blob/main/README.md"))
+        row_counter += 1
+        cdb_link = tk.Label(help_tab, text="Click here to download an up-to-date .cdb file.", fg="blue", cursor="hand2")
+        cdb_link.grid(row=row_counter, column=0, sticky="w", padx=5, pady=(5,0))
+        cdb_link.bind("<Button-1>", lambda e: self.open_link(r"https://github.com/ProjectIgnis/BabelCDB/blob/master/cards.cdb"))
+        row_counter += 1
+        tk.Label(help_tab, text="This is " + VERSION_NUMBER + " of the YGO Scrambler.").grid(row=row_counter, column=0, sticky="w", padx=5, pady=(5,0))
+        row_counter += 1
+        release_link = tk.Label(help_tab, text="Click here to check for a newer release.", fg="blue", cursor="hand2")
+        release_link.grid(row=row_counter, column=0, sticky="w", padx=5, pady=(0,0))
+        release_link.bind("<Button-1>", lambda e: self.open_link(r"https://github.com/TheLetterJ0/YGO-Scrambler/releases"))
+        row_counter += 1
+
     
-    # Function to handle the Scramble button click
+    def open_link(self, url):
+        webbrowser.open_new(url)
+
+    # Function to handle the Delete button click
     def delete(self):
         cdb_path = self.cdb_del_path.get()
         if not cdb_path:
@@ -958,10 +1042,15 @@ class YGOScramblerGUI(tk.Frame):
         messagebox.showinfo("Deletion complete", delete_message)
         print()
 
-    # Function to open a file selection dialog
-    def select_file(self):
+    # Function to open a .cdb file selection dialog
+    def select_cdb_file(self):
         file_path = filedialog.askopenfilename(filetypes=[("CDB Files", "*.cdb")])
         self.cdb_path.set(file_path)
+
+    # Function to open a banlist file selection dialog
+    def select_banlist_file(self):
+        file_path = filedialog.askopenfilename(filetypes=[("Banlist Files", "*.conf")])
+        self.banlist_path.set(file_path)
 
     # Function to open a directory selection dialog
     def select_directory(self):
@@ -1011,6 +1100,11 @@ class YGOScramblerGUI(tk.Frame):
             messagebox.showerror("Missing Path to ProjectIgnis Directory", "Could not find ProjectIgnis directory at:\r\n" + ignis_dir)
             return
         
+        banlist_path = self.banlist_path.get().strip()
+        if banlist_path and not os.path.exists(banlist_path):
+            messagebox.showerror("Missing Banlist File", "Could not find banlist file at:\r\n" + banlist_path)
+            return
+
         global PLAYER_ID_OFFSET
         player_number = self.player_number.get()
 
@@ -1059,9 +1153,9 @@ class YGOScramblerGUI(tk.Frame):
         elif "Randomize" in random_level:
             extra_random = 2
 
-        self.shuffle_and_create_new_db(old_db_path, new_db_path, db_path_for_opponent, img_old_path, img_new_path, merge_choices_hex, script_old_path1, script_old_path2, script_new_path, lflist_path, extra_random, pool_size, seed)
+        self.shuffle_and_create_new_db(old_db_path, new_db_path, db_path_for_opponent, img_old_path, img_new_path, merge_choices_hex, script_old_path1, script_old_path2, script_new_path, lflist_path, banlist_path, extra_random, pool_size, seed)
     
-    def shuffle_and_create_new_db(self, old_db_path, new_db_path, db_path_for_opponent, img_old_path, img_new_path, merge_speeds, script_old_path1, script_old_path2, script_new_path, lflist_path, extra_random, pool_size, seed):
+    def shuffle_and_create_new_db(self, old_db_path, new_db_path, db_path_for_opponent, img_old_path, img_new_path, merge_speeds, script_old_path1, script_old_path2, script_new_path, lflist_path, banlist_path, extra_random, pool_size, seed):
         # Connect to the old database.
         conn_old = sqlite3.connect(f'file:{old_db_path}?mode=ro', uri=True)
         cursor_old = conn_old.cursor()
@@ -1104,8 +1198,7 @@ class YGOScramblerGUI(tk.Frame):
         types = [row[4] for row in datasrows]           # Monster, Spell, Trap, Tuner, Xyz, Equip, and so on. See the link above.
         atks = [row[5] for row in datasrows]            # ATK. ? is stored as -2.
         defs = [row[6] for row in datasrows]            # DEF. ? is stored as -2. Link monsters use this field to store which arrows they have. See the link above.
-        levels = [row[7] for row in datasrows]          # Level/Rank/Link rating. Pendulum scales are also stored here in the format 0xW0Y000Z, where W and Y are
-                                                        # the values of the scales, and Z is the level.
+        levels = [row[7] for row in datasrows]          # Level/Rank/Link rating. Pendulum scales are also stored here in the format 0xW0Y000Z, where W and Y are the values of the scales, and Z is the level.
         races = [row[8] for row in datasrows]           # Monster type.
         attributes = [row[9] for row in datasrows]      # Monster Attribute.
         categorys = [row[10] for row in datasrows]      # The type of effects the card has (draw, destroy, negate, etc.). See the link above.
@@ -1132,6 +1225,16 @@ class YGOScramblerGUI(tk.Frame):
                     for field in datafields:
                         del field[i]
         
+        # Apply banlist to cardpool, if one was provided.
+        if banlist_path:
+            filtered_ids = banlist_file_filter(banlist_path, old_ids)
+            for i in range(len(old_ids) - 1, -1, -1):
+                if old_ids[i] not in filtered_ids:
+                    for field in textfields:
+                        del field[i]
+                    for field in datafields:
+                        del field[i]
+
         norm_effect_monst_indexes = []
         fusion_monst_indexes = []
         synchro_monst_indexes = []
@@ -1363,6 +1466,8 @@ class YGOScramblerGUI(tk.Frame):
             for s in name_replace_fields:
                 s[i] = s[i].replace('"' + names[i] + '"', '"' + new_names[i] + '"')
             descs[i] = descs[i] + "\r\n\r\n(Effect origin is: " + names[i] + ".)"
+            if old_ids[i] in cards_to_unscramble:
+                descs[i] = descs[i] + "\r\n\r\n(Due to technical limitations, this card is set to never scramble. It may still not work completely accurately, so you may want to use the original unscrambled card instead.)"
         
         # Connect to the new database.
         conn_new = sqlite3.connect(new_db_path)

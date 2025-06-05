@@ -10,6 +10,10 @@ And if you and your opponent are using separate scrambles, you can recreate that
 5. If you are using the `YGO_Scrambler.py` Python script, make sure you have Python installed, and that it is version 3.10 or newer.
 6. In the location where those files are saved, run the YGO_Scrambler Python script (`python .\YGO_Scrambler.py`) or the executable.
 7. In the GUI window that appears, select the .cdb file from step 4, the `ProjectIgnis` directory (on Windows, this is `C:\ProjectIgnis` if you did not change the default installation location), and which player number you are using. You may also make any of the following optional adjustments:
+  * Select a banlist file to remove some cards from the cardpool before cards are scrambled.
+    * The Scrambler will only remove cards the banlist file sets as banned. Cards set as limited or semi-limited are treated as if they were unlimited.
+    * Note that the Scrambler currently only supports current TCG and OCG cards, not pre-errata cards that banlists for historic formats frequently use.
+    * Banlists for Goat and Edison formats are included in [the releases](https://github.com/TheLetterJ0/YGO-Scrambler/releases) in `OptionalFiles.zip`.
   * Check any of the boxes to allow some categories of cards to be mixed together. For example, checking the "Field and Continuous Spells" box will mean that some Field Spells may get the effects of Continuous Spells, and some Continuous Spells may get the effects of Field Spells.
   * You can use the dropdown box to allow the stats of Monster Cards (Attribute, Type, Level/Rank, ATK, DEF, Pendulum Scales, and Link Arrows) to be changed. (Due to technical limitations, Link Ratings are not changed under any option.) In addition to the option not to change the stats, there are two levels of randomization to choose from:
     * "Shuffle Stats" takes all the existing stats and shuffles them around between Monsters. It does not keep sets of stats together. This means that for example, Warriors, Darks, and Level 4s will still be common, while Sea Serpents, Fires, and Level 11s will still be rarer.
@@ -43,7 +47,6 @@ The three main options for playing are:
 * Let both players use different scrambles, but give each other the `P_Scrambled.cdb` files instead of the `P_ScrambledForOpponent.cdb` files, so you are building from different cardpools, but will know what your opponent's cards do when you see them.
 * Let both players use different scrambles, and give each other the `P_ScrambledForOpponent.cdb` files, so you have no idea what your opponent's cards do, just like in the anime.
 In addition to the customization options available in the GUI, you can:
-* Use a .cdb file other than the current one from Project Ignis to scramble only the cards in that database for a format with fewer cards, like Goat or Edison.
 * Edit the `scramble_flavor_text.txt` file to change the flavor texts generated for your cards that your opponent sees instead of their effects.
 
 ## "I Want To See Someone Play with Scrambled Cards To See What it's Like"
