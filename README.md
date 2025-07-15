@@ -1,5 +1,6 @@
 # Yu-Gi-Oh Card Scrambler
 This tool was created to scramble the effects of Yu-Gi-Oh cards to create a brand new set of cards for you to play with on EDOPro. This can create never-before-seen interactions and make the most unexpected cards meta-defining.
+
 And if you and your opponent are using separate scrambles, you can recreate that feeling of not knowing what your opponent's cards do until you play into them, just like in the anime.
 
 ## How to Use
@@ -51,6 +52,7 @@ In addition to the customization options available in the GUI, you can:
 
 ## "I Want To See Someone Play with Scrambled Cards To See What it's Like"
 Good news! Wham Bam Duel and I have been doing a scrambled version of the Progression Series formula on [his YouTube channel](https://www.youtube.com/@whambamduel). You can see the playlist [here](https://www.youtube.com/playlist?list=PLWB6oGocBDhSjoIEvsT857FMLtcbTSnY4). It is just as chaotic as you might imagine, and it didn't take long for amazing interactions to start appearing.
+
 Or watch [this one-off video](https://youtu.be/0kiZMgUK9S8?si=OmD7ny3ImLrj-BH6) he made with another cohost, which also used the Battle Pack "all monsters are all types" rule.
 
 ## "Can I Make Content Using the YGO Scrambler Too?"
@@ -69,11 +71,14 @@ The following cards have parts of their effects coded outside of their script fi
 * Tellarknight Constellar Caduceus
 * Thunder Dragon Thunderstormech
 * Ultimate Dragonic Utopia Ray
+
 The following cards are known to have unfixed issues when scrambled, but have not been set to never scramble:
 * The First Sarcophagus (The other Sarcophagus cards will be put on the field, but "Spirit of the Pharaoh" will not be summoned.)
 * Assault Mode Activate (Unable to be activated at all.)
+
 Other known issues:
 * Ritual Spells and Ritual monsters will list the incorrect cards they are "paired" with. Despite what the cards say, Ritual Monsters are summoned by the Spells that have the effects of the Ritual Spells that originally summoned the Ritual Monster whose effects they now have. And the Ritual Spells will list the level of the original Ritual Monster as their tribute requirement, but they actually require the level of the new Ritual Monster. (For example, if "Giant Soldier of Stone" has the effect of "Hungry Burger", and "Raigeki" has the effect of "Hamburger Recipe", then "Giant Soldier of Stone" can be summoned by using "Raigeki" and tributing 3 stars worth of monsters. "Raigeki" will not summon "Hungry Burger", and "Hamburger Recipe" will not summon "Giant Soldier of Stone".)
+
 The following are not bugs, they are just the way this format works:
 * Some effects may be completely unusable because of the card they are scrambled onto. For example, Monarch effects on level 4 monsters.
 * Archetypal Ritual Spells will not summon Ritual Monsters that have the effects of a member of that archetype, but are not of that archetype themselves. (For example, the card with the effect of "Gishki Aquamirror" will not summon a "Mystical Elf" that has the effect of "Evigishki Soul Ogre".)
@@ -82,8 +87,11 @@ The following are not bugs, they are just the way this format works:
 
 ## Contributing to the YGO Scrambler and Reporting Broken Effects and Other Bugs
 All contributions are welcome!
+
 If you find a card effect that doesn't work like it should, please let me know. I tried to find all the problem cards I could, but there are over 13,000 of them now, and more keep coming. You can report bugs by creating an issue on the Issues tab on this repository. Be sure to include the card(s) with the problem, what card(s) the effect(s) originally came from, what it is doing wrong, the current gamestate and relevant interactions, and anything else important. Please make sure you are not reporting one of the examples above that are known problems or specifically not problems.
+
 Feature requests are also accepted on the Issues tab.
+
 If you want to assist with development, pull requests are welcome.
 
 ## "Help! I Need to Regenerate my Scramble, but I Don't Know What My Seed Was!"
