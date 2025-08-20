@@ -3,7 +3,7 @@ import random
 from pathlib import Path
 import urllib.request
 import shutil
-import os
+import json
 import re
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
@@ -13,7 +13,7 @@ import tqdm
 from functools import partial
 from ratelimit import limits, sleep_and_retry
 
-VERSION_NUMBER = "v1.3.0"
+VERSION_NUMBER = "v1.4.0"
 
 PLAYER_1_OFFSET = 3100000000
 PLAYER_2_OFFSET = 3200000000
@@ -30,7 +30,7 @@ PLAYER_ID_OFFSET = 0
 # Ratelimit to make sure we do not exceed the YGOPRODeck API's rate limit of 20 requests/second.
 @sleep_and_retry
 @limits(calls=20, period=1)
-def ratelimited_download(imgURL, new_img1, new_img2, old_id):
+def ratelimited_download(imgURL, new_img1, old_id):
     try:
         urllib.request.urlretrieve(imgURL, new_img1)
         shutil.copyfile(new_img1, new_img2)
@@ -40,30 +40,42 @@ def ratelimited_download(imgURL, new_img1, new_img2, old_id):
         print("\r\nCould not download file {}.\r\n".format(old_id))
         print(e)
 
-def download_images_parallel(old_id, img_old_path, img_new_path):
+def download_images_parallel(old_id, img_old_path, img_new_path, art_repo_path):
     # Make sure image does not already exist, so we don't redownload files we don't need to.
     new_img1 = Path(img_new_path, str(PLAYER_1_OFFSET + old_id) + '.jpg')
     new_img2 = Path(img_new_path, str(PLAYER_2_OFFSET + old_id) + '.jpg')
     old_img = Path(img_old_path, str(old_id) + '.jpg')
+    art_repo_img = Path(art_repo_path, str(old_id) + '.jpg')
     if not new_img1.is_file() and not new_img2.is_file():
         if old_img.is_file():
             shutil.copyfile(old_img, new_img1)
+            shutil.copyfile(new_img1, new_img2)
+        elif art_repo_img.is_file():
+            shutil.copyfile(art_repo_img, new_img1)
+            shutil.copyfile(new_img1, new_img2)
         else:
-            imgURL = "https://images.ygoprodeck.com/images/cards_small/" + str(old_id) + ".jpg"
-            ratelimited_download(imgURL, new_img1, new_img2, old_id)
+            try:
+                # Try to download from the art repository first.
+                imgURL = "https://raw.githubusercontent.com/TheLetterJ0/YGO-Scrambler-Card-Art/refs/heads/main/pics/" + str(old_id + PLAYER_1_OFFSET) + ".jpg"
+                urllib.request.urlretrieve(imgURL, new_img1)
+                shutil.copyfile(new_img1, new_img2)
+            except Exception as e:
+                # If the image isn't in the repo, get it from YGOPRODeck.
+                imgURL = "https://images.ygoprodeck.com/images/cards_small/" + str(old_id) + ".jpg"
+                ratelimited_download(imgURL, new_img1, new_img2, old_id)
     elif not new_img2.is_file():
         shutil.copyfile(new_img1, new_img2)
     else:
         shutil.copyfile(new_img2, new_img1)
 
 def download_images(old_ids, img_old_path, img_new_path):
-    if not os.path.exists(img_new_path):
-        os.makedirs(img_new_path)
-
+    img_new_path.mkdir(parents=True, exist_ok=True)
+    art_repo_path = Path(img_new_path.parents[1], "ygo-scrambler-card-art", "pics")
+    
     pool = ThreadPool()
     progress_bar = tqdm.tqdm(total=len(old_ids))
     progress_bar.set_description("Copying/downloading images")
-    for _ in pool.imap(partial(download_images_parallel, img_old_path=img_old_path, img_new_path=img_new_path), old_ids):
+    for _ in pool.imap(partial(download_images_parallel, img_old_path=img_old_path, img_new_path=img_new_path, art_repo_path=art_repo_path), old_ids):
         progress_bar.update()
         progress_bar.refresh()
     pool.close()
@@ -83,7 +95,7 @@ def copy_scripts_parallel(id_index, old_ids, new_ids, script_old_path1, script_o
     if new_type in [0x11, 0x1011]:
         new_script = Path(script_new_path, 'c' + str(new_id) + '.lua')
         if new_script.is_file():
-            os.remove(new_script)
+            new_script.unlink()
     else:
         # This will overwrite existing scripts, which is fine because any existing ones are probably from previous scrambles.
         new_script = Path(script_new_path, 'c' + str(new_id) + '.lua')
@@ -110,8 +122,7 @@ def copy_scripts_parallel(id_index, old_ids, new_ids, script_old_path1, script_o
 
 def copy_scripts(old_ids, new_ids, script_old_path1, script_old_path2, script_new_path, new_types):
     # Make sure destination folder exists.
-    if not os.path.exists(script_new_path):
-        os.makedirs(script_new_path)
+    script_new_path.mkdir(parents=True, exist_ok=True)
     
     id_indexes = range(len(old_ids))
 
@@ -298,10 +309,15 @@ def copy_and_fix_script(old_script_path, new_script_path, old_id):
             # Tokens have IDs 1 higher than the card that summons them, so we have to use the ID of card that originally had that effect.
             if ("Duel.CreateToken" in newline or "Duel.IsPlayerCanSpecialSummonMonster" in newline or ("local TOKEN_" in newline or ("local " in newline and "_TOKEN" in newline))) and ("id+1" in newline or "id+2" in newline or "id+i" in newline):
                 newline = newline.replace("id+1", str(old_id + 1)).replace("id+2", str(old_id + 2)).replace("id+i", str(old_id) + "+i")
-            if "aux.Stringid(id," in newline:
-                newline = newline.replace("aux.Stringid(id,", "aux.Stringid(math.fmod(id,100000000),")
+            if "c:IsOriginalCode(" in newline:
+                # There are scripts with "IsOriginalCode(id)", "IsOriginalCode(XXXXXXXX)" and so on. This should cover all possibilities.
+                newline = re.sub(r"([A-Za-z]*c):IsOriginalCode\((.+?)\)", r"(\1:IsOriginalCode(\2) or \1:IsOriginalCode(\2 - " + str(PLAYER_1_OFFSET) + r") or \1:IsOriginalCode(\2 + " + str(PLAYER_1_OFFSET) + r") or \1:IsOriginalCode(\2 - " + str(PLAYER_2_OFFSET) + r") or \1:IsOriginalCode(\2 + " + str(PLAYER_2_OFFSET) + r"))", newline)
+            if ":IsCode(id" in newline:
+                newline = re.sub(r" ([A-Za-z0-9\(\):]*):IsCode\((id.*?)\)", r" (\1:IsCode(math.fmod(\2,100000000)) or \1:IsCode(math.fmod(\2,100000000) + " + str(PLAYER_1_OFFSET) + r") or \1:IsCode(math.fmod(\2,100000000) + " + str(PLAYER_2_OFFSET) + r"))", newline)
             if "GetCode()~=id" in newline:
-                newline = newline.replace("GetCode()~=id", "GetCode()~=math.fmod(id,100000000)")
+                newline = re.sub(r" ([A-Za-z0-9\(\):]*):GetCode\(\)~=(id.*?)", r" (\1:GetCode()~=math.fmod(\2,100000000) or \1:GetCode()~=math.fmod(\2,100000000) + " + str(PLAYER_1_OFFSET) + r" or \1:GetCode()~=math.fmod(\2,100000000) + " + str(PLAYER_2_OFFSET) + r")", newline)
+            if "(Card.IsCode,id" in newline:
+                newline = re.sub(r"\(Card.IsCode,(id.*?)[,\)]", r"(Card.IsCode,math.fmod(\1,100000000),math.fmod(\1,100000000) + " + str(PLAYER_1_OFFSET) + r",math.fmod(\1,100000000) + " + str(PLAYER_2_OFFSET) + r")", newline)
             new_file_text += newline
     with open(new_script_path, 'w', encoding="utf8") as file:
         file.write(new_file_text)
@@ -619,7 +635,7 @@ def read_flavor_text_file():
     label_mapping = {"===GENERIC===":generic_flavor, "===MONSTER===": monster_flavor, "===RITUAL MONSTER===":ritual_mon_flavor, "===FUSION MONSTER===":fusion_flavor, "===SYNCHRO MONSTER===":synchro_flavor, "===XYZ MONSTER===":xyz_flavor, "===PENDULUM MONSTER===":pendulum_flavor, "===LINK MONSTER===":link_flavor, "===SPELL===":spell_flavor, "===EQUIP SPELL===":equip_flavor, "===FIELD SPELL===":field_flavor, "===CONTINUOUS SPELL===":cont_spell_flavor, "===RITUAL SPELL===":ritual_spell_flavor, "===QUICK-PLAY SPELL===":quickplay_flavor, "===TRAP===":trap_flavor, "===CONTINUOUS TRAP===":cont_trap_flavor, "===COUNTER TRAP===":counter_flavor}
     
     flavor_path = Path(Path.cwd(), 'scramble_flavor_text.txt')
-    if os.path.exists(flavor_path):
+    if flavor_path.is_file():
         with open(flavor_path) as file:
             current_card_type = generic_flavor
             for line in file:
@@ -715,7 +731,7 @@ def banlist_file_filter(banlist_file, id_list):
     allowed_id_set = set()
     banned_id_set = set()
     is_whitelist = False
-    if os.path.exists(banlist_file):
+    if banlist_file.is_file():
         with open(banlist_file) as file:
             for line in file:
                 tokens = line.split()
@@ -743,18 +759,18 @@ class YGOScramblerGUI(tk.Frame):
 
         # Initialize the main window
         parent.title("Yugioh Card Scrambler")
-        parent.geometry("420x445")
+        parent.geometry("420x490")
         parent.resizable(False, False)
 
         main = tk.ttk.Notebook(parent)
         main.pack(expand = True, fill ="both") 
 
         scramble_tab = tk.Frame(main)
-        delete_tab = tk.Frame(main)
+        extra_tab = tk.Frame(main)
         help_tab = tk.Frame(main)
         main.add(scramble_tab, text="Scramble")
-        main.add(delete_tab, text="Delete")
-        main.add(help_tab, text="Help")
+        main.add(extra_tab, text="Delete Scramble Files")
+        main.add(help_tab, text="Help and Links")
 
         row_counter = 0
 
@@ -846,6 +862,11 @@ class YGOScramblerGUI(tk.Frame):
         size_entry.grid(row=row_counter, column=1, sticky="w")
         row_counter += 1
 
+        # Force manual image download
+        self.download_img_check = tk.IntVar()
+        tk.Checkbutton(scramble_tab, justify="left", text="Force card art to download\n(only use if EDOPro was not able to find all arts)", variable=self.download_img_check).grid(row=row_counter, column=0, sticky="w", padx=5, pady=(3,0))
+        row_counter += 1
+        
         # Seed entry
         seed_frame = tk.Frame(scramble_tab)
         seed_frame.grid(row=row_counter, column=0, sticky="w", pady=(5,0))
@@ -860,44 +881,31 @@ class YGOScramblerGUI(tk.Frame):
         tk.Button(scramble_tab, text="Scramble!", command=self.scramble, width=10).grid(row=row_counter, column=1, sticky="e", pady=(5,0))
         
 
-        # Delete tab
+        # Extra Functions tab
         row_counter = 0
-        tk.Label(delete_tab, justify="left", text="Use this to clean up custom files from a previous scramble.\nThis is NOT necessary to do before creating a new scramble.").grid(row=row_counter, column=0, sticky="w", padx=5, pady=(5,0))
+        tk.Label(extra_tab, justify="left", text=("To remove custom files from a previous scramble, delete these folders:\n"
+            "\tProjectIgnis\\repositories\\ygo-scrambler\n"
+            "\tProjectIgnis\\repositories\\ygo-scrambler-card-art\n"
+            "This is NOT necessary to do before creating a new scramble.\n"
+            "If you plan to do another scramble, keep the \"ygo-scrambler-card-art\" folder\n"
+            "so images will not need to be redownloaded")).grid(row=row_counter, column=0, sticky="w", padx=5, pady=(5,0))
         row_counter += 1
-        
-        # .cdb file selection
-        tk.Label(delete_tab, text="Select the scrambled .cdb file, or the original .cdb used to generate it:").grid(row=row_counter, column=0, sticky="w", padx=5, pady=(5,0))
+
+        tk.Label(extra_tab, justify="left", text="If you delete all files, press this button to also remove the folders from\n"
+            "EDOPro's config file.").grid(row=row_counter, column=0, sticky="w", padx=5, pady=(15,0))
         row_counter += 1
-        self.cdb_del_path = tk.StringVar()
-        file_selection_frame = tk.Frame(delete_tab)
-        file_selection_frame.grid(row=row_counter, column=0, sticky="w", pady=(0,0))
-        row_counter += 1
-        tk.Entry(file_selection_frame, textvariable=self.cdb_del_path, width=50).grid(row=0, column=0, sticky="w", padx=13)
-        tk.Button(file_selection_frame, text="Browse", command=self.select_del_file, width=10).grid(row=0, column=1, sticky="w")
 
         # ProjectIgnis directory selection
-        tk.Label(file_selection_frame, text="Select your ProjectIgnis directory:").grid(row=1, column=0, sticky="w", padx=5, pady=(5,0))
-        self.ignis_dir_del_path = tk.StringVar()
-        tk.Entry(file_selection_frame, textvariable=self.ignis_dir_del_path, width=50).grid(row=2, column=0, sticky="w", padx=13)
-        tk.Button(file_selection_frame, text="Browse", command=self.select_del_directory, width=10).grid(row=2, column=1, sticky="w")
-
-        # Checkboxes for what to delete
-        tk.Label(delete_tab, text="Select which files to delete:").grid(row=row_counter, column=0, sticky="w", padx=5, pady=(5,0))
+        file_selection_frame = tk.Frame(extra_tab)
+        file_selection_frame.grid(row=row_counter, column=0, sticky="w", pady=(0,0))
         row_counter += 1
-        delete_boxes_frame = tk.Frame(delete_tab)
-        delete_boxes_frame.grid(row=row_counter, column=0, sticky="w", pady=(5,0))
-        row_counter += 1
-        self.delete_choices = [tk.IntVar() for _ in range(4)]
-        tk.Checkbutton(delete_boxes_frame, text="Scripts", variable=self.delete_choices[0]).grid(row=0, column=0, sticky="w", padx=13)
-        tk.Checkbutton(delete_boxes_frame, text="Card images", variable=self.delete_choices[1]).grid(row=0, column=1, sticky="w", padx=13)
-        tk.Checkbutton(delete_boxes_frame, text="Banlist file", variable=self.delete_choices[2]).grid(row=1, column=0, sticky="w", padx=13)
-        tk.Checkbutton(delete_boxes_frame, text="Scrambled .cdb file", variable=self.delete_choices[3]).grid(row=1, column=1, sticky="w", padx=13)
+        tk.Label(file_selection_frame, text="Select your ProjectIgnis directory:").grid(row=1, column=0, sticky="w", padx=5, pady=(0,0))
+        self.ignis_dir_config_path = tk.StringVar()
+        tk.Entry(file_selection_frame, textvariable=self.ignis_dir_config_path, width=50).grid(row=2, column=0, sticky="w", padx=13)
+        tk.Button(file_selection_frame, text="Browse", command=self.select_config_directory, width=10).grid(row=2, column=1, sticky="w")
 
-        tk.Label(delete_tab, justify="left", text="Files for your opponent of the selected type(s) will be deleted too, if present.\n\nNote that images are not unique to a scramble, and will need to be recopied\nor redownloaded by the scrambler if you use it again.").grid(row=row_counter, column=0, sticky="w", padx=5, pady=(5,0))
+        tk.Button(extra_tab, text="Reset Config File", command=self.reset_config_file, width=15).grid(row=row_counter, column=0)
         row_counter += 1
-
-        # Delete button
-        tk.Button(delete_tab, text="Delete", command=self.delete, width=10).grid(row=row_counter, column=0, sticky="e", padx=5, pady=(5,0))
 
 
         # Help tab
@@ -916,131 +924,43 @@ class YGOScramblerGUI(tk.Frame):
         release_link.grid(row=row_counter, column=0, sticky="w", padx=5, pady=(0,0))
         release_link.bind("<Button-1>", lambda e: self.open_link(r"https://github.com/TheLetterJ0/YGO-Scrambler/releases"))
         row_counter += 1
+        release_link = tk.Label(help_tab, text="Click here to join the YGO Scrambler Discord Server.", fg="blue", cursor="hand2")
+        release_link.grid(row=row_counter, column=0, sticky="w", padx=5, pady=(5,0))
+        release_link.bind("<Button-1>", lambda e: self.open_link(r"https://discord.gg/sCQWRkRYPk"))
+        row_counter += 1
 
     
     def open_link(self, url):
         webbrowser.open_new(url)
 
-    # Function to handle the Delete button click
-    def delete(self):
-        cdb_path = self.cdb_del_path.get()
-        if not cdb_path:
-            messagebox.showerror("Missing .cdb File", "Include a path to your .cdb file.")
-            return
-        if not os.path.exists(cdb_path):
-            messagebox.showerror("Missing .cdb File", "Could not find .cdb file at:\r\n" + cdb_path)
-            return
-        
-        ignis_dir = self.ignis_dir_del_path.get()
-        if not ignis_dir:
+    # Function to handle the Reset Config File button click
+    def reset_config_file(self):
+        ignis_dir_entry = self.ignis_dir_config_path.get()
+        if not ignis_dir_entry:
             messagebox.showerror("Missing Path to ProjectIgnis Directory", "Include a path to your ProjectIgnis directory.")
             return
-        img_path = Path(ignis_dir, 'expansions\\pics')
-        script_path = Path(ignis_dir, 'expansions\\script')
-        lflist_path = Path(ignis_dir, 'lflists')
-        
-        if not (os.path.exists(ignis_dir) and os.path.exists(img_path) and os.path.exists(script_path) and os.path.exists(lflist_path)):
+
+        ignis_dir = Path(ignis_dir_entry)
+        if not ignis_dir.is_dir():
             messagebox.showerror("Missing Path to ProjectIgnis Directory", "Could not find ProjectIgnis directory at:\r\n" + ignis_dir)
             return
+        print("asdf")
+        config_file_path = Path(ignis_dir, 'config', 'user_configs.json')
+        if config_file_path.is_file():
+            print("sadf")
+            config_json = {}
+            with config_file_path.open('r') as file:
+                config_json = json.load(file)
+            found_repo = False
+            for i in range(len(config_json['repos']) - 1, -1, -1):
+                if (config_json['repos'][i]['repo_name'] == "YGO Scrambler Card Art") or (config_json['repos'][i]['repo_name'] == "YGO Scrambler"):
+                    config_json['repos'].pop(i)
+                    found_repo = True
+                if found_repo:
+                    with config_file_path.open('w') as file:
+                        json.dump(config_json, file, indent=4)
 
-        delete_choices = [self.delete_choices[i].get() for i in range(4)]
-        delete_message = ""
-
-        # Get ids
-        if delete_choices[0] or delete_choices[1]:
-            # Connect to the database.
-            conn = sqlite3.connect(f'file:{cdb_path}?mode=ro', uri=True)
-            cursor = conn.cursor()
-
-            # Retrieve the ids from the "texts" table.
-            cursor.execute("SELECT id FROM texts")
-            ids = [id[0] for id in cursor.fetchall()]
-            conn.close()
-            
-            # 0 for original cdb, 1 for player 1, 2 for player 2
-            player_number = 0
-
-            # If the .cdb the original, convert the ids to scramble ids. If it is scrambled, add the ids for the other player.
-            if ids[0] < 3100000000:
-                ids = [id + 3100000000 for id in ids] + [id + 3200000000 for id in ids]
-            elif ids[0] >= 3100000000 and ids[0] < 3200000000:
-                player_number = 1
-                ids += [id + 100000000 for id in ids]
-            elif ids[0] >= 3200000000 and ids[0] < 3300000000:
-                player_number = 2
-                ids += [id - 100000000 for id in ids]
-            else:
-                messagebox.showerror("Invalid IDs", "The IDs in your .cdb file are not valid.\nNo files have been deleted.")
-                return
-
-            def check_for_file_and_delete(file_path):
-                if os.path.exists(file_path):
-                    os.unlink(file_path)
-                    return 1
-                return 0
-
-            # Delete scripts
-            if delete_choices[0]:
-                paths = [Path(script_path, "c"+ str(i) + ".lua") for i in ids]
-                pool = ThreadPool()
-                progress_bar = tqdm.tqdm(total=len(ids))
-                progress_bar.set_description("Deleting scripts")
-                for _ in pool.imap(check_for_file_and_delete, paths):
-                    progress_bar.update()
-                    progress_bar.refresh()
-                pool.close()
-                pool.join()
-                delete_message += "Deleted scripts.\n"
-            # Delete images
-            if delete_choices[1]:
-                paths = [Path(img_path, str(i) + ".jpg") for i in ids]
-                pool = ThreadPool()
-                progress_bar = tqdm.tqdm(total=len(ids))
-                progress_bar.set_description("Deleting images")
-                for _ in pool.imap(check_for_file_and_delete, paths):
-                    progress_bar.update()
-                    progress_bar.refresh()
-                pool.close()
-                pool.join()
-                delete_message += "Deleted images.\n"
-        # Delete banlist
-        if delete_choices[2]:
-            banlist_path = Path(lflist_path, "scramble.lflist.conf")
-            if check_for_file_and_delete(banlist_path):
-                delete_message += "Deleted banlist file.\n"
-            else:
-                delete_message += "Could not find banlist file to delete.\n"
-        # Delete .cdb
-        if delete_choices[3]:
-            if player_number == 0:
-                delete_message += "Could not find scrambled .cdb files to delete since the unscrambled .cdb file was given.\n"
-            elif player_number == 1:
-                os.unlink(cdb_path)
-                scram_cdb_path = Path(ignis_dir, "expansions\\P1Scrambled.cdb")
-                opp_scram_cdb_path = Path(ignis_dir, "expansions\\P2ScrambledForOpponent.cdb")
-                if check_for_file_and_delete(scram_cdb_path):
-                    delete_message += "Deleted P1Scrambled.cdb file.\n"
-                else:
-                    delete_message += "Could not find P1Scrambled.cdb file to delete.\n"
-                if check_for_file_and_delete(opp_scram_cdb_path):
-                    delete_message += "Deleted P2ScrambledForOpponent.cdb file.\n"
-                else:
-                    delete_message += "Could not find P2ScrambledForOpponent.cdb file to delete.\n"
-            elif player_number == 2:
-                scram_cdb_path = Path(ignis_dir, "expansions\\P2Scrambled.cdb")
-                opp_scram_cdb_path = Path(ignis_dir, "expansions\\P1ScrambledForOpponent.cdb")
-                if check_for_file_and_delete(scram_cdb_path):
-                    delete_message += "Deleted P2Scrambled.cdb file.\n"
-                else:
-                    delete_message += "Could not find P2Scrambled.cdb file to delete.\n"
-                if check_for_file_and_delete(opp_scram_cdb_path):
-                    delete_message += "Deleted P1ScrambledForOpponent.cdb file.\n"
-                else:
-                    delete_message += "Could not find P1ScrambledForOpponent.cdb file to delete.\n"
-
-        delete_message += "\nYou may now close the Scrambler window."
-        messagebox.showinfo("Deletion complete", delete_message)
-        print()
+        messagebox.showinfo("Config File Reset", "YGO Scrambler settings have been removed from your EDOPro config file.")
 
     # Function to open a .cdb file selection dialog
     def select_cdb_file(self):
@@ -1057,15 +977,10 @@ class YGOScramblerGUI(tk.Frame):
         dir_path = filedialog.askdirectory()
         self.ignis_dir_path.set(dir_path)
 
-    # Function to open a file selection dialog
-    def select_del_file(self):
-        file_path = filedialog.askopenfilename(filetypes=[("CDB Files", "*.cdb")])
-        self.cdb_del_path.set(file_path)
-
     # Function to open a directory selection dialog
-    def select_del_directory(self):
+    def select_config_directory(self):
         dir_path = filedialog.askdirectory()
-        self.ignis_dir_del_path.set(dir_path)
+        self.ignis_dir_config_path.set(dir_path)
 
     def player_selected(self, event):
         player_number = self.player_number_dropdown.get()
@@ -1079,39 +994,66 @@ class YGOScramblerGUI(tk.Frame):
 
     # Function to handle the Scramble button click
     def scramble(self):
-        old_db_path = self.cdb_path.get()
-        if not old_db_path:
+        old_db_path_entry = self.cdb_path.get()
+        if not old_db_path_entry:
             messagebox.showerror("Missing .cdb File", "Include a path to your .cdb file.")
             return
-        if not os.path.exists(old_db_path):
-            messagebox.showerror("Missing .cdb File", "Could not find .cdb file at:\r\n" + old_db_path)
+        old_db_path = Path(old_db_path_entry)
+        if not old_db_path.is_file():
+            messagebox.showerror("Missing .cdb File", "Could not find .cdb file at:\r\n" + str(old_db_path))
             return
         
-        ignis_dir = self.ignis_dir_path.get()
-        if not ignis_dir:
+        ignis_dir_entry = self.ignis_dir_path.get()
+        if not ignis_dir_entry:
             messagebox.showerror("Missing Path to ProjectIgnis Directory", "Include a path to your ProjectIgnis directory.")
+            return
+        ignis_dir = Path(ignis_dir_entry)
+        scrambler_repo_path = Path(ignis_dir, 'repositories', 'ygo-scrambler')
+        scrambler_art_repo_path = Path(ignis_dir, 'repositories', 'ygo-scrambler-card-art')
+        scrambler_repo_path.mkdir(parents=True, exist_ok=True)
+        if not scrambler_repo_path.is_dir():
+            messagebox.showerror("Could Not Create YGO Scrambler Repository", "Could not find/create a YGO Scrambler repository:\r\n" + str(scrambler_repo_path))
             return
         img_old_path = Path(ignis_dir, 'pics')
         script_old_path1 = Path(ignis_dir, 'script\\official')
         script_old_path2 = Path(ignis_dir, 'repositories\\delta-bagooska\\script\\official')
-        lflist_path = Path(ignis_dir, 'lflists')
+        lflist_path = Path(scrambler_repo_path)
         
-        if not (os.path.exists(ignis_dir) and os.path.exists(img_old_path) and os.path.exists(script_old_path1) and os.path.exists(lflist_path)):
-            messagebox.showerror("Missing Path to ProjectIgnis Directory", "Could not find ProjectIgnis directory at:\r\n" + ignis_dir)
+        if not (ignis_dir.is_dir()):
+            messagebox.showerror("Missing Path to ProjectIgnis Directory", "Could not find ProjectIgnis directory at:\r\n" + str(ignis_dir))
+            return
+        if not (img_old_path.is_dir()):
+            messagebox.showerror("Missing Path to ProjectIgnis pics Directory", "Could not find ProjectIgnis pics directory at:\r\n" + str(img_old_path))
+            return
+        if not (script_old_path1.is_dir()):
+            messagebox.showerror("Missing Path to ProjectIgnis scripts Directory", "Could not find ProjectIgnis scripts directory at:\r\n" + str(script_old_path1))
+            return
+        if not (lflist_path.is_dir()):
+            messagebox.showerror("Missing Path to lflist Directory", "Could not find target lflist path at:\r\n" + str(lflist_path))
             return
         
-        banlist_path = self.banlist_path.get().strip()
-        if banlist_path and not os.path.exists(banlist_path):
-            messagebox.showerror("Missing Banlist File", "Could not find banlist file at:\r\n" + banlist_path)
+        banlist_path_entry = self.banlist_path.get().strip()
+        banlist_path = Path(banlist_path_entry)
+        if banlist_path_entry and not banlist_path.is_file():
+            messagebox.showerror("Missing Banlist File", "Could not find banlist file at:\r\n" + str(banlist_path))
             return
 
         global PLAYER_ID_OFFSET
         player_number = self.player_number.get()
 
-        new_db_path = Path(ignis_dir, 'expansions', 'P' + str(player_number) + 'Scrambled.cdb')
+        new_db_path = Path(scrambler_repo_path, 'P' + str(player_number) + 'Scrambled.cdb')
         db_path_for_opponent = Path(Path.cwd(), 'P' + str(player_number) + 'ScrambledForOpponent.cdb')
-        img_new_path = Path(ignis_dir, 'expansions\\pics')
-        script_new_path = Path(ignis_dir, 'expansions\\script')
+        img_new_path = Path(scrambler_art_repo_path, 'pics')
+        force_img_download = self.download_img_check.get()
+        if force_img_download:
+            img_new_path = Path(scrambler_repo_path, 'pics')
+        script_new_path = Path(scrambler_repo_path, 'script')
+
+        config_file_path = Path(ignis_dir, 'config', 'user_configs.json')
+        if not config_file_path.is_file():
+            with config_file_path.open('w') as file:
+                config_json = dict(repos=[])
+                json.dump(config_json, file)
 
         # Uncomment when support for more than 2 players is implemented.
         #opponent_numbers = [self.opponent_numbers[i].get() for i in range(10)]
@@ -1153,9 +1095,9 @@ class YGOScramblerGUI(tk.Frame):
         elif "Randomize" in random_level:
             extra_random = 2
 
-        self.shuffle_and_create_new_db(old_db_path, new_db_path, db_path_for_opponent, img_old_path, img_new_path, merge_choices_hex, script_old_path1, script_old_path2, script_new_path, lflist_path, banlist_path, extra_random, pool_size, seed)
+        self.shuffle_and_create_new_db(old_db_path, new_db_path, db_path_for_opponent, force_img_download, img_old_path, img_new_path, merge_choices_hex, script_old_path1, script_old_path2, script_new_path, lflist_path, config_file_path, banlist_path, extra_random, pool_size, seed)
     
-    def shuffle_and_create_new_db(self, old_db_path, new_db_path, db_path_for_opponent, img_old_path, img_new_path, merge_speeds, script_old_path1, script_old_path2, script_new_path, lflist_path, banlist_path, extra_random, pool_size, seed):
+    def shuffle_and_create_new_db(self, old_db_path, new_db_path, db_path_for_opponent, force_img_download, img_old_path, img_new_path, merge_speeds, script_old_path1, script_old_path2, script_new_path, lflist_path, config_file_path, banlist_path, extra_random, pool_size, seed):
         # Connect to the old database.
         conn_old = sqlite3.connect(f'file:{old_db_path}?mode=ro', uri=True)
         cursor_old = conn_old.cursor()
@@ -1226,7 +1168,7 @@ class YGOScramblerGUI(tk.Frame):
                         del field[i]
         
         # Apply banlist to cardpool, if one was provided.
-        if banlist_path:
+        if banlist_path.is_file():
             filtered_ids = banlist_file_filter(banlist_path, old_ids)
             for i in range(len(old_ids) - 1, -1, -1):
                 if old_ids[i] not in filtered_ids:
@@ -1601,7 +1543,39 @@ class YGOScramblerGUI(tk.Frame):
         conn_new.close()
         
         # Copy/Download card images.
-        download_images(old_ids, img_old_path, img_new_path)
+        if force_img_download:
+            download_images(old_ids, img_old_path, img_new_path)
+
+        # Update user config file.
+        config_json = {}
+        with config_file_path.open('r') as file:
+            config_json = json.load(file)
+
+        found_repo = False
+        found_art_repo = False
+        for repo in config_json['repos']:
+            if repo['repo_name'] == "YGO Scrambler":
+                found_repo = True
+            elif repo['repo_name'] == "YGO Scrambler Card Art":
+                found_art_repo = True
+        if not found_repo:
+            config_json['repos'].append(dict(repo_name='YGO Scrambler',
+                repo_path='./repositories/ygo-scrambler',
+                lflist_path='.',
+                script_path='./script',
+                should_update=True,
+                should_read=True,
+                not_git_repo=True))
+        if not found_art_repo and not force_img_download:
+            config_json['repos'].append(dict(repo_name='YGO Scrambler Card Art',
+                repo_path='./repositories/ygo-scrambler-card-art',
+                url='https://github.com/TheLetterJ0/YGO-Scrambler-Card-Art',
+                pics_path='./pics',
+                should_update=True,
+                should_read=True))
+        if not found_repo or (not force_img_download and not found_art_repo):
+            with config_file_path.open('w') as file:
+                json.dump(config_json, file, indent=4)
         
         # Copy scripts
         copy_scripts(old_ids, new_ids, script_old_path1, script_old_path2, script_new_path, new_types)
