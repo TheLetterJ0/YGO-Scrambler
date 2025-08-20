@@ -30,7 +30,7 @@ PLAYER_ID_OFFSET = 0
 # Ratelimit to make sure we do not exceed the YGOPRODeck API's rate limit of 20 requests/second.
 @sleep_and_retry
 @limits(calls=20, period=1)
-def ratelimited_download(imgURL, new_img1, old_id):
+def ratelimited_download(imgURL, new_img1, new_img2, old_id):
     try:
         urllib.request.urlretrieve(imgURL, new_img1)
         shutil.copyfile(new_img1, new_img2)
@@ -1603,4 +1603,5 @@ if __name__=="__main__":
     #main()
     root = tk.Tk()
     YGOScramblerGUI(root).pack(side="top", fill="both", expand=True)
+
     root.mainloop()
