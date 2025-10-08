@@ -18,7 +18,7 @@ import time
 import hashlib
 import zipfile
 
-VERSION_NUMBER = "v1.5.0"
+VERSION_NUMBER = "v1.5.1"
 
 PLAYER_1_OFFSET = 3100000000
 PLAYER_2_OFFSET = 3200000000
@@ -380,10 +380,10 @@ def copy_and_fix_script(old_script_path, new_script_path, old_id):
             if "c:IsOriginalCode(" in newline:
                 # There are scripts with "IsOriginalCode(id)", "IsOriginalCode(XXXXXXXX)" and so on. This should cover all possibilities.
                 newline = re.sub(r"([A-Za-z]*c):IsOriginalCode\((.+?)\)", r"(\1:IsOriginalCode(\2) or \1:IsOriginalCode(\2-" + str(PLAYER_1_OFFSET) + r") or \1:IsOriginalCode(\2+" + str(PLAYER_1_OFFSET) + r") or \1:IsOriginalCode(\2-" + str(PLAYER_2_OFFSET) + r") or \1:IsOriginalCode(\2+" + str(PLAYER_2_OFFSET) + r"))", newline)
-            if ":IsCode(id" in newline:
-                newline = re.sub(r" ([A-Za-z0-9\(\):]*):IsCode\((id.*?)\)", r" (\1:IsCode(math.fmod(\2,100000000)) or \1:IsCode(math.fmod(\2,100000000)+" + str(PLAYER_1_OFFSET) + r") or \1:IsCode(math.fmod(\2,100000000)+" + str(PLAYER_2_OFFSET) + r"))", newline)
+            if "IsCode(id" in newline:
+                newline = re.sub(r" (\(*)([A-Za-z0-9\(\):]*)IsCode\((id.*?)\)", r" \1(\2IsCode(math.fmod(\3,100000000)) or \2IsCode(math.fmod(\3,100000000)+" + str(PLAYER_1_OFFSET) + r") or \2IsCode(math.fmod(\3,100000000)+" + str(PLAYER_2_OFFSET) + r"))", newline)
             if "GetCode()~=id" in newline:
-                newline = re.sub(r" ([A-Za-z0-9\(\):]*):GetCode\(\)~=(id.*?)", r" (\1:GetCode()~=math.fmod(\2,100000000) or \1:GetCode()~=math.fmod(\2,100000000)+" + str(PLAYER_1_OFFSET) + r" or \1:GetCode()~=math.fmod(\2,100000000)+" + str(PLAYER_2_OFFSET) + r")", newline)
+                newline = re.sub(r" (\(*)([A-Za-z0-9\(\):]*)GetCode\(\)~=(id.*?)", r" \1(\2GetCode()~=math.fmod(\3,100000000) or \2GetCode()~=math.fmod(\3,100000000)+" + str(PLAYER_1_OFFSET) + r" or \2GetCode()~=math.fmod(\3,100000000)+" + str(PLAYER_2_OFFSET) + r")", newline)
             if "(Card.IsCode," in newline and ",id" in newline:
                 newline = re.sub(r"\(Card.IsCode,(.*?,)?(id.*?)([,\)])", r"(Card.IsCode,\1math.fmod(\2,100000000),math.fmod(\2,100000000)+" + str(PLAYER_1_OFFSET) + r",math.fmod(\2,100000000) + "+str(PLAYER_2_OFFSET) + r"\3", newline)
             new_file_text += newline
