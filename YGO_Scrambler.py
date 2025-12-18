@@ -1,7 +1,7 @@
 import sqlite3
 import random
 from pathlib import Path
-import urllib.request
+# import urllib.request
 import shutil
 import json
 import re
@@ -10,15 +10,14 @@ from tkinter import filedialog, messagebox, ttk
 import webbrowser
 from multiprocessing.dummy import Pool as ThreadPool
 import multiprocessing
-import itertools
+# import itertools
 from tqdm import tqdm
 from functools import partial
-from ratelimit import limits, sleep_and_retry
+# from ratelimit import limits, sleep_and_retry
 import time
 import hashlib
-import zipfile
 
-VERSION_NUMBER = "v1.5.1"
+VERSION_NUMBER = "v1.6.0"
 
 PLAYER_1_OFFSET = 3100000000
 PLAYER_2_OFFSET = 3200000000
@@ -31,64 +30,6 @@ PLAYER_8_OFFSET = 3800000000
 PLAYER_9_OFFSET = 3900000000
 PLAYER_10_OFFSET = 3000000000
 PLAYER_ID_OFFSET = 0
-
-# Ratelimit to make sure we do not exceed the YGOPRODeck API's rate limit of 20 requests/second.
-@sleep_and_retry
-@limits(calls=20, period=1)
-def ratelimited_download(imgURL, new_img1, new_img2, old_id):
-    try:
-        urllib.request.urlretrieve(imgURL, new_img1)
-        shutil.copyfile(new_img1, new_img2)
-    except Exception as e:
-        # This probably means either the YGOPRODeck site is down, or they are missing an image.
-        # New/pre-release cards may be missing, if the database gets updated before the site.
-        print("\r\nCould not download file {}.\r\n".format(old_id))
-        print(e)
-
-def download_images_parallel(old_id, img_old_path, img_new_path, art_repo_path):
-    # Make sure image does not already exist, so we don't redownload files we don't need to.
-    new_img1 = Path(img_new_path, str(PLAYER_1_OFFSET + old_id) + '.jpg')
-    new_img2 = Path(img_new_path, str(PLAYER_2_OFFSET + old_id) + '.jpg')
-    old_img = Path(img_old_path, str(old_id) + '.jpg')
-    art_repo_img = Path(art_repo_path, str(old_id) + '.jpg')
-    if not new_img1.is_file() and not new_img2.is_file():
-        if old_img.is_file():
-            shutil.copyfile(old_img, new_img1)
-            shutil.copyfile(new_img1, new_img2)
-        elif art_repo_img.is_file():
-            shutil.copyfile(art_repo_img, new_img1)
-            shutil.copyfile(new_img1, new_img2)
-        else:
-            try:
-                # Try to download from the art repository first.
-                imgURL = "https://raw.githubusercontent.com/TheLetterJ0/YGO-Scrambler-Card-Art/refs/heads/main/pics/" + str(old_id + PLAYER_1_OFFSET) + ".jpg"
-                urllib.request.urlretrieve(imgURL, new_img1)
-                shutil.copyfile(new_img1, new_img2)
-            except Exception as e:
-                # If the image isn't in the repo, get it from YGOPRODeck.
-                imgURL = "https://images.ygoprodeck.com/images/cards_small/" + str(old_id) + ".jpg"
-                ratelimited_download(imgURL, new_img1, new_img2, old_id)
-    elif not new_img2.is_file():
-        shutil.copyfile(new_img1, new_img2)
-    else:
-        shutil.copyfile(new_img2, new_img1)
-
-def download_images(old_ids, img_old_path, img_new_path):
-    img_new_path.mkdir(parents=True, exist_ok=True)
-    art_repo_path = Path(img_new_path.parents[1], "ygo-scrambler-card-art", "pics")
-    
-    pool = ThreadPool()
-    progress_bar = tqdm(total=len(old_ids))
-    progress_bar.set_description("Copying/downloading images")
-    for _ in pool.imap(partial(download_images_parallel, img_old_path=img_old_path, img_new_path=img_new_path, art_repo_path=art_repo_path), old_ids):
-        progress_bar.update()
-        progress_bar.refresh()
-    pool.close()
-    pool.join()
-
-    seed_img = Path(img_old_path, '76766706.jpg')
-    if seed_img.is_file():
-        shutil.copyfile(seed_img, Path(img_new_path, str(PLAYER_ID_OFFSET) + '.jpg'))
 
 def copy_scripts_parallel(id_index, old_ids, new_ids, script_old_path1, script_old_path2, script_new_path, new_types):
     old_id = old_ids[id_index]
@@ -128,7 +69,7 @@ def copy_scripts_parallel(id_index, old_ids, new_ids, script_old_path1, script_o
 def copy_scripts(old_ids, new_ids, script_old_path1, script_old_path2, script_new_path, new_types):
     # Make sure destination folder exists.
     script_new_path.mkdir(parents=True, exist_ok=True)
-    
+
     id_indexes = range(len(old_ids))
 
     pool = ThreadPool()
@@ -238,19 +179,34 @@ def fix_xyz_link_materials_parallel(new_id, script_old_path1, script_old_path2, 
             else:
                 print("Summoning conditions not found for", new_id)
                 old_material = '\r\n'
+        file.seek(0)
         in_func = False
-        filters_used = [filt for filt in filter_text if filt in old_material]
-        if "Link.AddProcedure" in old_material and len(filters_used) > 0:
-            for line in file:
-                if any(filt in line for filt in ["function " + f for f in filters_used]):
-                    in_func = True
-                if in_func:
-                    filter_func += line
-                if line == "end\n" or line == "end\r\n":
-                    in_func = False
-        for filt in range(len(filters_used)):
-            filter_func = filter_func.replace(filters_used[filt], "oldcardfilter"+str(filt))
-            old_material = old_material.replace(filters_used[filt], "oldcardfilter"+str(filt))
+        target_filters = [filt for filt in filter_text if filt in old_material]
+        filters_found = []
+        if "Link.AddProcedure" in old_material:
+            while len(target_filters) > 0:
+                found_inner_filters = False
+                inner_filters = []
+                for line in file:
+                    if any(filt in line for filt in ["function " + f for f in target_filters]):
+                        in_func = True
+                    if in_func:
+                        filter_func += line
+                        if "IsExists(s." in line:
+                            found_inner_filters = True
+                            f = "s." + (line.split("IsExists(s.")[1]).split(',')[0]
+                            inner_filters.append(f)
+                    if line == "end\n" or line == "end\r\n":
+                        in_func = False
+                filters_found.extend(target_filters)
+                if found_inner_filters:
+                    target_filters = inner_filters[:]
+                    file.seek(0)
+                else:
+                    target_filters = []
+        for filt in range(len(filters_found)):
+            filter_func = filter_func.replace(filters_found[filt], "oldcardfilter"+str(filt))
+            old_material = old_material.replace(filters_found[filt], "oldcardfilter"+str(filt))
     new_file_text = ""
     with open(new_script_path, encoding="utf8") as file:
         in_func = False
@@ -287,7 +243,7 @@ def fix_xyz_material_levels_parallel(id_and_level, script_new_path):
                 new_file_text += re.sub(r"(Xyz.AddProcedure\(c,.+,)\d\d?(,\d[,\)])", r"\g<1>{}\2".format(level), line)
             else:
                 new_file_text += line
-    
+
     with open(new_script_path, 'w', encoding="utf8") as file:
         file.write(new_file_text)
 
@@ -308,7 +264,7 @@ def fix_xyz_numbers_parallel(id_and_name, script_new_path):
     new_id, new_name = id_and_name
     new_script_path = Path(script_new_path, 'c' + str(new_id) + '.lua')
 
-    changed = False    
+    changed = False
     new_file_text = ""
     with open(new_script_path, encoding="utf8") as file:
         for line in file:
@@ -371,28 +327,42 @@ def fix_field_cont_spell_mix(new_ids, script_new_path, cont_field_spell_indexes,
 
 def copy_and_fix_script(old_script_path, new_script_path, old_id):
     new_file_text = ""
+    offsets = [str(PLAYER_1_OFFSET), str(PLAYER_2_OFFSET), str(PLAYER_3_OFFSET), str(PLAYER_4_OFFSET), str(PLAYER_5_OFFSET), str(PLAYER_6_OFFSET), str(PLAYER_7_OFFSET), str(PLAYER_8_OFFSET), str(PLAYER_9_OFFSET), str(PLAYER_10_OFFSET)]
     with open(old_script_path, encoding="utf8") as file:
         for line in file:
             newline = line
             # Tokens have IDs 1 higher than the card that summons them, so we have to use the ID of card that originally had that effect.
             if ("Duel.CreateToken" in newline or "Duel.IsPlayerCanSpecialSummonMonster" in newline or ("local TOKEN_" in newline or ("local " in newline and "_TOKEN" in newline))) and ("id+1" in newline or "id+2" in newline or "id+i" in newline):
+                newline = newline.replace("()", "XXXXX")
                 newline = newline.replace("id+1", str(old_id + 1)).replace("id+2", str(old_id + 2)).replace("id+i", str(old_id) + "+i")
+                newline = newline.replace("XXXXX", "()")
             if "c:IsOriginalCode(" in newline:
-                # There are scripts with "IsOriginalCode(id)", "IsOriginalCode(XXXXXXXX)" and so on. This should cover all possibilities.
-                newline = re.sub(r"([A-Za-z]*c):IsOriginalCode\((.+?)\)", r"(\1:IsOriginalCode(\2) or \1:IsOriginalCode(\2-" + str(PLAYER_1_OFFSET) + r") or \1:IsOriginalCode(\2+" + str(PLAYER_1_OFFSET) + r") or \1:IsOriginalCode(\2-" + str(PLAYER_2_OFFSET) + r") or \1:IsOriginalCode(\2+" + str(PLAYER_2_OFFSET) + r"))", newline)
+                newline = newline.replace("()", "XXXXX")
+                replace_string = r"(\1:IsOriginalCode(\2) or " + " or ".join(fr"\1:IsOriginalCode(\2-{o}) or \1:IsOriginalCode(\2+{o})" for o in offsets) + ")"
+                newline = re.sub(r"([A-Za-z]*c):IsOriginalCode\((.+?)\)", replace_string, newline)
+                newline = newline.replace("XXXXX", "()")
             if "IsCode(id" in newline:
-                newline = re.sub(r" (\(*)([A-Za-z0-9\(\):]*)IsCode\((id.*?)\)", r" \1(\2IsCode(math.fmod(\3,100000000)) or \2IsCode(math.fmod(\3,100000000)+" + str(PLAYER_1_OFFSET) + r") or \2IsCode(math.fmod(\3,100000000)+" + str(PLAYER_2_OFFSET) + r"))", newline)
+                newline = newline.replace("()", "XXXXX")
+                replace_string = r" \1(\2IsCode(math.fmod(\3,100000000)) or " + " or ".join(fr"\2IsCode(math.fmod(\3,100000000)+{o})" for o in offsets) + ")"
+                newline = re.sub(r" (\(*)([A-Za-z0-9\(\):]*)IsCode\((id.*?)\)", replace_string, newline)
+                newline = newline.replace("XXXXX", "()")
             if "GetCode()~=id" in newline:
-                newline = re.sub(r" (\(*)([A-Za-z0-9\(\):]*)GetCode\(\)~=(id.*?)", r" \1(\2GetCode()~=math.fmod(\3,100000000) or \2GetCode()~=math.fmod(\3,100000000)+" + str(PLAYER_1_OFFSET) + r" or \2GetCode()~=math.fmod(\3,100000000)+" + str(PLAYER_2_OFFSET) + r")", newline)
+                newline = newline.replace("()", "XXXXX")
+                replace_string = r" \1(\2GetCode()~=math.fmod(\3,100000000) or " + " or ".join(fr"\2GetCode()~=math.fmod(\3,100000000)+{o}" for o in offsets) + ")"
+                newline = re.sub(r" (\(*)([A-Za-z0-9\(\):]*)GetCode\(\)~=(id.*?)", replace_string, newline)
+                newline = newline.replace("XXXXX", "()")
             if "(Card.IsCode," in newline and ",id" in newline:
-                newline = re.sub(r"\(Card.IsCode,(.*?,)?(id.*?)([,\)])", r"(Card.IsCode,\1math.fmod(\2,100000000),math.fmod(\2,100000000)+" + str(PLAYER_1_OFFSET) + r",math.fmod(\2,100000000) + "+str(PLAYER_2_OFFSET) + r"\3", newline)
+                newline = newline.replace("()", "XXXXX")
+                replace_string = r"(Card.IsCode,\1math.fmod(\2,100000000),"+",".join(fr"math.fmod(\2,100000000)+{o}" for o in offsets) + r"\3"
+                newline = re.sub(r"\(Card.IsCode,(.*?,)?(id.*?)([,\)])", replace_string, newline)
+                newline = newline.replace("XXXXX", "()")
             new_file_text += newline
     with open(new_script_path, 'w', encoding="utf8") as file:
         file.write(new_file_text)
 
 def fix_individual_cards(old_id_to_new_effect_id_dict, script_new_path):
     # Add progress bar
-    with tqdm(total=19, desc="Doing final script fixes") as progress_bar:
+    with tqdm(total=22, desc="Doing final script fixes") as progress_bar:
 
         # Fix "That's 10!"
         if 97223101 in old_id_to_new_effect_id_dict:
@@ -415,7 +385,7 @@ def fix_individual_cards(old_id_to_new_effect_id_dict, script_new_path):
                 file.write(new_file_text)
         progress_bar.update()
         progress_bar.refresh()
-        
+
         # Fix "Dark Sage"
         if 92377303 in old_id_to_new_effect_id_dict:
             dark_sage_new_id = old_id_to_new_effect_id_dict[92377303]
@@ -431,7 +401,7 @@ def fix_individual_cards(old_id_to_new_effect_id_dict, script_new_path):
                 file.write(new_file_text)
         progress_bar.update()
         progress_bar.refresh()
-        
+
         # Fix "Metalzoa" and "Red-Eyes Black Metal Dragon"
         for metal_id in [50705071, 64335804]:
             if metal_id in old_id_to_new_effect_id_dict:
@@ -448,7 +418,7 @@ def fix_individual_cards(old_id_to_new_effect_id_dict, script_new_path):
                     file.write(new_file_text)
         progress_bar.update()
         progress_bar.refresh()
-        
+
         # Fix "Tellus the Little Angel"
         if 19280589 in old_id_to_new_effect_id_dict:
             tellus_new_id = old_id_to_new_effect_id_dict[19280589]
@@ -491,14 +461,14 @@ def fix_individual_cards(old_id_to_new_effect_id_dict, script_new_path):
             with open(script_path, encoding="utf8") as file:
                 for line in file:
                     if "elseif code==id then a5=true" in line:
-                        new_file_text += f"elseif (code==id or code==id-{PLAYER_1_OFFSET} or code==id-{PLAYER_2_OFFSET}) then a5=true\r\n"
+                        new_file_text += f"elseif code==math.fmod(id,100000000) then a5=true\r\n"
                     else:
                         new_file_text += line
             with open(script_path, 'w', encoding="utf8") as file:
                 file.write(new_file_text)
         progress_bar.update()
         progress_bar.refresh()
-        
+
         # Fix "Quickdraw Synchron"
         if 20932152 in old_id_to_new_effect_id_dict:
             quickdraw_new_id = old_id_to_new_effect_id_dict[20932152]
@@ -514,7 +484,7 @@ def fix_individual_cards(old_id_to_new_effect_id_dict, script_new_path):
                 file.write(new_file_text)
         progress_bar.update()
         progress_bar.refresh()
-        
+
         # Fix "Ruin, Angel of Oblivion" and "Ruin, Supreme Queen of Oblivion"
         if 46427957 in old_id_to_new_effect_id_dict:
             new_og_ruin_id = old_id_to_new_effect_id_dict[46427957]
@@ -533,7 +503,7 @@ def fix_individual_cards(old_id_to_new_effect_id_dict, script_new_path):
                         file.write(new_file_text)
         progress_bar.update()
         progress_bar.refresh()
-        
+
         # Fix "Demise, Agent of Armageddon" and "Demise, Supreme King of Armageddon"
         if 72426662 in old_id_to_new_effect_id_dict:
             new_og_demise_id = old_id_to_new_effect_id_dict[72426662]
@@ -552,7 +522,7 @@ def fix_individual_cards(old_id_to_new_effect_id_dict, script_new_path):
                         file.write(new_file_text)
         progress_bar.update()
         progress_bar.refresh()
-        
+
         # Fix "Shinobaron Shade Peacock"
         if 60823690 in old_id_to_new_effect_id_dict and 52900000 in old_id_to_new_effect_id_dict:
             shade_new_id = old_id_to_new_effect_id_dict[60823690]
@@ -569,7 +539,7 @@ def fix_individual_cards(old_id_to_new_effect_id_dict, script_new_path):
                 file.write(new_file_text)
         progress_bar.update()
         progress_bar.refresh()
-        
+
         # Fix "Shinobaroness Shade Peacock"
         if 33325951 in old_id_to_new_effect_id_dict and 25415052 in old_id_to_new_effect_id_dict:
             shade_new_id = old_id_to_new_effect_id_dict[33325951]
@@ -586,7 +556,7 @@ def fix_individual_cards(old_id_to_new_effect_id_dict, script_new_path):
                 file.write(new_file_text)
         progress_bar.update()
         progress_bar.refresh()
-        
+
         # Fix "Pyro Clock of Destiny"
         if 1082946 in old_id_to_new_effect_id_dict:
             clock_new_id = old_id_to_new_effect_id_dict[1082946]
@@ -602,7 +572,7 @@ def fix_individual_cards(old_id_to_new_effect_id_dict, script_new_path):
                 file.write(new_file_text)
         progress_bar.update()
         progress_bar.refresh()
-        
+
         # Fix "Double Snare"
         if 3682106 in old_id_to_new_effect_id_dict:
             snare_new_id = old_id_to_new_effect_id_dict[3682106]
@@ -618,7 +588,7 @@ def fix_individual_cards(old_id_to_new_effect_id_dict, script_new_path):
                 file.write(new_file_text)
         progress_bar.update()
         progress_bar.refresh()
-        
+
         # Fix "Void Expansion"
         if 34822850 in old_id_to_new_effect_id_dict:
             void_new_id = old_id_to_new_effect_id_dict[34822850]
@@ -634,7 +604,7 @@ def fix_individual_cards(old_id_to_new_effect_id_dict, script_new_path):
                 file.write(new_file_text)
         progress_bar.update()
         progress_bar.refresh()
-            
+
         # Fix "Chaos Witch"
         # This script doesn't summon tokens the same way others do, so it doesn't get covered by fix_scripts().
         if 30327674 in old_id_to_new_effect_id_dict:
@@ -672,7 +642,7 @@ def fix_individual_cards(old_id_to_new_effect_id_dict, script_new_path):
                     file.write(new_file_text)
         progress_bar.update()
         progress_bar.refresh()
-        
+
         # Fix Monsters that halve their ATK/DEF and have the new values hardcoded. ("Emissary from Pandemonium", "Archfiend Emperor, the First Lord of Horror", "Vice Dragon", "Fusilier Dragon, the Dual-Mode Beast", "Solar Wind Jammer", and "Segmental Dragon".)
         half_old_ids = [42685062, 28423537, 54343893, 51632798, 33911264, 15066114]
         for id in half_old_ids:
@@ -730,6 +700,172 @@ def fix_individual_cards(old_id_to_new_effect_id_dict, script_new_path):
         progress_bar.update()
         progress_bar.refresh()
 
+        # Fix "Primite Roar" and "Primite Howl"
+        for primite_id in [92501449, 41488249]:
+            if primite_id in old_id_to_new_effect_id_dict:
+                newid = old_id_to_new_effect_id_dict[primite_id]
+                script_path = Path(script_new_path, 'c' + str(newid) + '.lua')
+                new_file_text = ""
+                with open(script_path, encoding="utf8") as file:
+                    for line in file:
+                        if "e1:SetTarget(s.target)" in line:
+                            new_file_text += line.replace("e1:SetTarget(s.target)", "e1:SetTarget(s.sptg)")
+                        else:
+                            new_file_text += line
+                    new_file_text += '\n'.join(["\nfunction s.spfilter2(c,e,tp,code)",
+                        "\treturn c:IsType(TYPE_NORMAL)",
+                        "end",
+                        "function s.sptg(e,tp,eg,ep,ev,re,r,rp,chk)",
+                        "\tif chk==0 then return true end",
+                        "\tlocal g=Duel.GetMatchingGroup(s.spfilter2,tp,LOCATION_ALL,0,nil,e,tp)",
+                        "\tlocal ids={}",
+                        "\tfor tc in g:Iter() do",
+                        "\t\tids[tc:GetCode()]=true",
+                        "\tend",
+                        "\ts.announce_filter={TYPE_NORMAL,OPCODE_ISTYPE}",
+                        "\tfor code,iter in pairs(ids) do",
+                        "\t\tif #s.announce_filter==0 then",
+                        "\t\t\ttable.insert(s.announce_filter,code)",
+                        "\t\t\ttable.insert(s.announce_filter,OPCODE_ISCODE)",
+                        "\t\telse",
+                        "\t\t\ttable.insert(s.announce_filter,code)",
+                        "\t\t\ttable.insert(s.announce_filter,OPCODE_ISCODE)",
+                        "\t\t\ttable.insert(s.announce_filter,OPCODE_OR)",
+                        "\t\tend",
+                        "\tend",
+                        "\tlocal code=Duel.AnnounceCard(tp,table.unpack(s.announce_filter))",
+                        "\tDuel.SetTargetParam(code)",
+                        "\tDuel.SetOperationInfo(0,CATEGORY_ANNOUNCE,nil,0,tp,ANNOUNCE_CARD_FILTER)"])
+                if id == 92501449:
+                    new_file_text += "\n\tDuel.SetOperationInfo(0,CATEGORY_SPECIAL_SUMMON,nil,1,tp,LOCATION_DECK)"
+                else:
+                    new_file_text += "\n\tDuel.SetOperationInfo(0,CATEGORY_SPECIAL_SUMMON,nil,1,tp,LOCATION_DECK|LOCATION_GRAVE)"
+                new_file_text += "\nend"
+                with open(script_path, 'w', encoding="utf8") as file:
+                    file.write(new_file_text)
+        progress_bar.update()
+        progress_bar.refresh()
+
+        # Fix "Supreme King's Castle"
+        if 72043279 in old_id_to_new_effect_id_dict:
+            dark_sage_new_id = old_id_to_new_effect_id_dict[72043279]
+            script_path = Path(script_new_path, 'c' + str(dark_sage_new_id) + '.lua')
+            new_file_text = ""
+            with open(script_path, encoding="utf8") as file:
+                for line in file:
+                    if "e2:SetCode(id)" in line:
+                        new_file_text += line.replace("e2:SetCode(id)", "e2:SetCode(72043279)")
+                    else:
+                        new_file_text += line
+            with open(script_path, 'w', encoding="utf8") as file:
+                file.write(new_file_text)
+        progress_bar.update()
+        progress_bar.refresh()
+
+        # Fix "Mixeroid"
+        if 71340250 in old_id_to_new_effect_id_dict:
+            mixeroid_new_id = old_id_to_new_effect_id_dict[71340250]
+            script_path = Path(script_new_path, 'c' + str(mixeroid_new_id) + '.lua')
+            new_file_text = ""
+            with open(script_path, encoding="utf8") as file:
+                for line in file:
+                    if "return c:IsRace(RACE_MACHINE) and c:IsAbleToRemoveAsCost()" in line:
+                        new_file_text += line.replace("return c:IsRace(RACE_MACHINE) and c:IsAbleToRemoveAsCost()",
+                            "return (c:IsRace(RACE_MACHINE) or c:GetCardID()==cardid) and c:IsAbleToRemoveAsCost()")
+                    elif "local c=e:GetHandler()" in line:
+                        new_file_text += line
+                        new_file_text += "\tcardid=c:GetCardID()\n"
+                    else:
+                        new_file_text += line
+            with open(script_path, 'w', encoding="utf8") as file:
+                file.write(new_file_text)
+        progress_bar.update()
+        progress_bar.refresh()
+
+def fix_replacement_effects(effect_ids, replacement_constant, tributes_self, tributes_other, script_new_path, replacement_progress_bar):
+    for eff_id in effect_ids:
+        script_path = Path(script_new_path, 'c' + str(eff_id) + '.lua')
+        if not script_path.is_file():
+            # Skip cards that don't have scripts. (Which should just be Normal Monsters.)
+            replacement_progress_bar.update()
+            replacement_progress_bar.refresh()
+            continue
+        new_file_text = ""
+        cost_functions = []
+        tribute_cost_functions = []
+        with open(script_path, encoding="utf8") as file:
+            in_func = ""
+            for line in file:
+                if "SetCost(Cost.SelfTribute)" in line:
+                    if tributes_self:
+                        new_file_text += line.replace("SetCost(Cost.SelfTribute)", f"SetCost(aux.CostWithReplace(Cost.SelfTribute,{replacement_constant}))")
+                    else:
+                        new_file_text += line
+                elif "SetCost(" in line:
+                    cost_functions.append(line.split("SetCost(")[1].split(")")[0])
+                    new_file_text += line
+                elif line.split(" ")[0] == "function":
+                    if line.split(" ")[1].split("(")[0] in cost_functions:
+                        in_func = line.split(" ")[1].split("(")[0]
+                    new_file_text += line
+                elif in_func and "Duel.Release" in line and "REASON_COST" in line:
+                    tribute_cost_functions.append(in_func)
+                    new_file_text += line
+                elif in_func and line in ("end\n", "end\r\n"):
+                    in_func = ""
+                    new_file_text += line
+                else:
+                    new_file_text += line
+            if tributes_other and len(tribute_cost_functions) > 0:
+                file.seek(0)
+                for line in file:
+                    if "SetCost(" in line:
+                        newline = line
+                        for func in tribute_cost_functions:
+                            if func in line:
+                                newline = line.replace("SetCost("+func+")", "SetCost(aux.CostWithReplace("+func+f",{replacement_constant}))")
+                                newline = line.replace("SetCost("+func+",", "SetCost(aux.CostWithReplace("+func+f",{replacement_constant},") + ")"
+                        new_file_text += newline
+                    else:
+                        new_file_text += line
+        with open(script_path, 'w', encoding="utf8") as file:
+            file.write(new_file_text)
+        replacement_progress_bar.update()
+        replacement_progress_bar.refresh()
+
+def update_config_file(config_file_path):
+    if not config_file_path.is_file():
+        with config_file_path.open('w') as file:
+            config_json = dict(repos=[])
+            json.dump(config_json, file)
+
+    config_json = {}
+    with config_file_path.open('r') as file:
+        config_json = json.load(file)
+
+    found_repo = False
+    found_art_url = False
+    for repo in config_json['repos']:
+        if repo['repo_name'] == "YGO Scrambler":
+            found_repo = True
+    for url in config_json['urls']:
+        if "YGO-Scrambler-Card-Art" in url['url']:
+            found_art_url = True
+    if not found_repo:
+        config_json['repos'].append(dict(repo_name='YGO Scrambler',
+            repo_path='./repositories/ygo-scrambler',
+            lflist_path='.',
+            script_path='./script',
+            should_update=True,
+            should_read=True,
+            not_git_repo=True))
+    if not found_art_url:
+        config_json['urls'].append(dict(url='https://raw.githubusercontent.com/TheLetterJ0/YGO-Scrambler-Card-Art/refs/heads/main/pics/{}.jpg',
+            type='pic'))
+    if not (found_repo and found_art_url):
+        with config_file_path.open('w') as file:
+            json.dump(config_json, file, indent=4)
+
 def tokenize_string(input_string):
     substrings = []
     current_string = ""
@@ -760,11 +896,11 @@ def tokenize_string(input_string):
                 if current_string:
                     substrings.append(current_string)
                 current_string = char
-    
+
     # Append the last number if there was one at the end of the string
     if current_string:
         substrings.append(current_string)
-    
+
     return substrings
 
 def read_flavor_text_file():
@@ -786,7 +922,7 @@ def read_flavor_text_file():
     cont_trap_flavor = []
     counter_flavor = []
     label_mapping = {"===GENERIC===":generic_flavor, "===MONSTER===": monster_flavor, "===RITUAL MONSTER===":ritual_mon_flavor, "===FUSION MONSTER===":fusion_flavor, "===SYNCHRO MONSTER===":synchro_flavor, "===XYZ MONSTER===":xyz_flavor, "===PENDULUM MONSTER===":pendulum_flavor, "===LINK MONSTER===":link_flavor, "===SPELL===":spell_flavor, "===EQUIP SPELL===":equip_flavor, "===FIELD SPELL===":field_flavor, "===CONTINUOUS SPELL===":cont_spell_flavor, "===RITUAL SPELL===":ritual_spell_flavor, "===QUICK-PLAY SPELL===":quickplay_flavor, "===TRAP===":trap_flavor, "===CONTINUOUS TRAP===":cont_trap_flavor, "===COUNTER TRAP===":counter_flavor}
-    
+
     flavor_path = Path(Path.cwd(), 'scramble_flavor_text.txt')
     if flavor_path.is_file():
         with open(flavor_path) as file:
@@ -800,7 +936,7 @@ def read_flavor_text_file():
                 current_card_type.append(line)
     else:
         generic_flavor.append("")
-    
+
     return label_mapping
 
 def add_flavor_text(desc_list, new_types, new_names, norm_effect_monst_indexes):
@@ -822,7 +958,7 @@ def add_flavor_text(desc_list, new_types, new_names, norm_effect_monst_indexes):
     trap_flavor = flavor_dict["===TRAP==="]
     cont_trap_flavor = flavor_dict["===CONTINUOUS TRAP==="]
     counter_flavor = flavor_dict["===COUNTER TRAP==="]
-    
+
     for i in range(len(desc_list)):
         cardtype = new_types[i]
         possible_flavors = generic_flavor
@@ -858,12 +994,12 @@ def add_flavor_text(desc_list, new_types, new_names, norm_effect_monst_indexes):
                 possible_flavors = possible_flavors + cont_trap_flavor
             if cardtype & 0x100000:         # Counter
                 possible_flavors = possible_flavors + counter_flavor
-        
+
         flavor = random.choice(possible_flavors)
         flavor = flavor.replace("[X]", new_names[i])
         flavor = flavor.replace("[Y]", new_names[norm_effect_monst_indexes[random.randrange(len(norm_effect_monst_indexes))]])
         flavor = flavor.replace("\\n", '\n')
-        
+
         desc_list[i] = flavor
     return desc_list
 
@@ -912,16 +1048,18 @@ class YGOScramblerGUI(tk.Frame):
 
         # Initialize the main window
         parent.title("Yugioh Card Scrambler, " + VERSION_NUMBER)
-        parent.geometry("425x590")
+        # parent.geometry("425x550")
         parent.resizable(False, False)
 
         main = tk.ttk.Notebook(parent)
-        main.pack(expand = True, fill ="both") 
+        main.pack(expand = True, fill ="both")
 
         scramble_tab = tk.Frame(main)
+        load_tab = tk.Frame(main)
         extra_tab = tk.Frame(main)
         help_tab = tk.Frame(main)
         main.add(scramble_tab, text="Scramble")
+        main.add(load_tab, text="Load Opponent's Files")
         main.add(extra_tab, text="Delete Scramble Files")
         main.add(help_tab, text="Help and Links")
 
@@ -962,27 +1100,11 @@ class YGOScramblerGUI(tk.Frame):
         tk.Label(scramble_tab, text="Select your player number:").grid(row=row_counter, column=0, sticky="w", padx=5, pady=(5,0))
         row_counter += 1
         self.player_number = tk.IntVar(value=1)
-        # Uncomment when support for more than 2 players is implemented.
-        #self.player_number_dropdown = tk.ttk.Combobox(scramble_tab, textvariable=self.player_number, values=list(range(1, 11)), width=3)
-        self.player_number_dropdown = tk.ttk.Combobox(scramble_tab, state="readonly", textvariable=self.player_number, values=list(range(1, 3)), width=3)
+        self.player_number_dropdown = tk.ttk.Combobox(scramble_tab, state="readonly", textvariable=self.player_number, values=list(range(1, 11)), width=3)
         self.player_number_dropdown.grid(row=row_counter, column=0, padx=13, sticky="w")
         row_counter += 1
         self.player_number_dropdown.current(0)
         self.player_number_dropdown.bind("<<ComboboxSelected>>", self.player_selected)
-
-        # Uncomment when support for more than 2 players is implemented.
-        # # Checkboxes for opponent player numbers
-        # tk.Label(scramble_tab, text="Select the player numbers your opponents are using:").grid(row=6, column=0, sticky="w", padx=5, pady=(5,0))
-        # opponent_checkboxes_frame = tk.Frame(scramble_tab)
-        # opponent_checkboxes_frame.grid(row=7, column=0, sticky="w", padx=5)
-        # self.opponent_numbers = [tk.IntVar() for _ in range(10)]
-        # self.opponent_checkboxes = [tk.Checkbutton(opponent_checkboxes_frame, text=f"{i+1}", variable=self.opponent_numbers[i]) for i in range(10)]
-        # for i in range(5):
-            # self.opponent_checkboxes[i].grid(row=0, column=i, sticky="w", padx=13)
-        # for i in range(5, 10):
-            # self.opponent_checkboxes[i].grid(row=1, column=i-5, sticky="w", padx=13)
-        # self.opponent_checkboxes[0].config(state=tk.DISABLED)
-
 
         # Checkboxes for merging extra deck cards
         tk.Label(scramble_tab, text="Select categories of Extra Deck cards to merge together (optional):").grid(row=row_counter, column=0, sticky="w", padx=5, pady=(5,0))
@@ -1018,7 +1140,7 @@ class YGOScramblerGUI(tk.Frame):
         self.extra_random_dropdown = tk.ttk.Combobox(random_frame, state="readonly", textvariable=self.extra_random, values=list(["Don't change stats", "Shuffle stats together", "Shuffle stats separately", "Randomize stats"]))
         self.extra_random_dropdown.grid(row=0, column=1, padx=13, sticky="w")
         self.extra_random_dropdown.current(0)
-        
+
         # Limit text entry to numbers
         def testVal(inStr,acttyp):
             if acttyp == '1': #insert
@@ -1037,19 +1159,9 @@ class YGOScramblerGUI(tk.Frame):
         size_entry.grid(row=0, column=1, sticky="w", pady=(3,0))
         row_counter += 1
 
-        # Force manual image download
-        self.download_img_check = tk.IntVar()
-        tk.Checkbutton(scramble_tab, justify="left", text="Force card art to download\n(only use if EDOPro was not able to find all arts)", variable=self.download_img_check).grid(row=row_counter, column=0, sticky="w", padx=5, pady=(0,0))
-        row_counter += 1
-        
-        # Create .zip of scripts
-        self.create_zip_check = tk.IntVar()
-        tk.Checkbutton(scramble_tab, justify="left", text="Create .zip of scripts", variable=self.create_zip_check).grid(row=row_counter, column=0, sticky="w", padx=5, pady=(0,0))
-        row_counter += 1
-
         seed_scramble_frame = tk.Frame(scramble_tab)
-        seed_scramble_frame.grid(row=row_counter, column=0, sticky="ew", pady=(0,0))
-        scramble_tab.grid_columnconfigure(0, weight=1) 
+        seed_scramble_frame.grid(row=row_counter, column=0, sticky="ew", pady=(0,10))
+        scramble_tab.grid_columnconfigure(0, weight=1)
 
         # Seed entry
         seed_frame = tk.Frame(seed_scramble_frame)
@@ -1064,20 +1176,54 @@ class YGOScramblerGUI(tk.Frame):
         # Scramble button
         seed_scramble_frame.grid_columnconfigure(0, weight=1)
         tk.Button(seed_scramble_frame, text="Scramble!", command=self.scramble, width=10).grid(row=0, column=1, sticky="e", padx=(0,10))
-        
+
+
+        # Load opponent's files tab
+        row_counter = 0
+        tk.Label(load_tab, justify="left", text=("The player hosting the duel should load the P[X]ScrambledForOpponent.cdb\n"
+            "file sent to them here to generate the necessary scripts and files.")).grid(row=row_counter, column=0, sticky="w", padx=5, pady=(5,0))
+        row_counter += 1
+
+        # Frame to hold file and directory selections
+        file_select_frame = tk.Frame(load_tab)
+        file_select_frame.grid(row=row_counter, column=0, sticky="w", pady=(5,0))
+        row_counter += 1
+        frame_row_counter = 0
+
+        # .cdb file selection
+        tk.Label(file_select_frame, text="Select your opponent's .cdb file:").grid(row=frame_row_counter, column=0, sticky="w", padx=5, pady=(5,0))
+        frame_row_counter += 1
+        self.opp_cdb_path = tk.StringVar()
+        tk.Entry(file_select_frame, textvariable=self.opp_cdb_path, width=50).grid(row=frame_row_counter, column=0, sticky="w", padx=13)
+        tk.Button(file_select_frame, text="Browse", command=self.select_opp_cdb_file, width=10).grid(row=frame_row_counter, column=1, sticky="w")
+        frame_row_counter += 1
+
+        # ProjectIgnis directory selection
+        tk.Label(file_select_frame, text="Select your ProjectIgnis directory:").grid(row=frame_row_counter, column=0, sticky="w", padx=5, pady=(5,0))
+        frame_row_counter += 1
+        # self.ignis_dir_path = tk.StringVar()
+        tk.Entry(file_select_frame, textvariable=self.ignis_dir_path, width=50).grid(row=frame_row_counter, column=0, sticky="w", padx=13)
+        tk.Button(file_select_frame, text="Browse", command=self.select_directory, width=10).grid(row=frame_row_counter, column=1, sticky="w")
+        frame_row_counter += 1
+
+        # Generate button
+        tk.Button(load_tab, text="Generate", command=self.generate_opp_files, width=10).grid(row=row_counter, column=0, pady=(10,0))
+
 
         # Extra Functions tab
         row_counter = 0
-        tk.Label(extra_tab, justify="left", text=("To remove custom files from a previous scramble, delete these folders:\n"
+        tk.Label(extra_tab, justify="left", text=("To remove custom files from a previous scramble, delete the folder at:\n"
             "\tProjectIgnis\\repositories\\ygo-scrambler\n"
-            "\tProjectIgnis\\repositories\\ygo-scrambler-card-art\n"
-            "This is NOT necessary to do before creating a new scramble.\n"
-            "If you plan to do another scramble, keep the \"ygo-scrambler-card-art\" folder\n"
-            "so images will not need to be redownloaded")).grid(row=row_counter, column=0, sticky="w", padx=5, pady=(5,0))
+            "This is NOT necessary to do before creating a new scramble.")).grid(row=row_counter, column=0, sticky="w", padx=5, pady=(5,0))
         row_counter += 1
 
-        tk.Label(extra_tab, justify="left", text="If you delete all files, press this button to also remove the folders from\n"
-            "EDOPro's config file.").grid(row=row_counter, column=0, sticky="w", padx=5, pady=(15,0))
+        tk.Label(extra_tab, justify="left", text='If you delete all files, you should also use the "Reset Config File" button\n'
+            "below to also remove the Scrambler\'s additions to your EDOPro \nuser_configs.json file.").grid(row=row_counter, column=0, sticky="w", padx=5, pady=(15,0))
+        row_counter += 1
+        tk.Label(extra_tab, justify="left", text='You can also use the "Delete Card Arts" button below to remove all of the\n'
+            "card arts for scrambled cards that EDO has downloaded.\n     (Warning: if you have other custom cards with IDs in the\n"
+            "     3000000000 - 3999999999 range that the YGO Scrambler uses, their\n     arts may also get deleted. If those arts were configured to download\n"
+            "     automatically, they will download again.)").grid(row=row_counter, column=0, sticky="w", padx=5, pady=(15,0))
         row_counter += 1
 
         # ProjectIgnis directory selection
@@ -1089,9 +1235,11 @@ class YGOScramblerGUI(tk.Frame):
         tk.Entry(file_selection_frame, textvariable=self.ignis_dir_config_path, width=50).grid(row=2, column=0, sticky="w", padx=13)
         tk.Button(file_selection_frame, text="Browse", command=self.select_config_directory, width=10).grid(row=2, column=1, sticky="w")
 
-        tk.Button(extra_tab, text="Reset Config File", command=self.reset_config_file, width=15).grid(row=row_counter, column=0)
+        button_frame = tk.Frame(extra_tab)
+        button_frame.grid(row=row_counter, column=0, pady=(10,0))
+        tk.Button(button_frame, text="Reset Config File", command=self.reset_config_file, width=15).grid(row=0, column=0, padx=13)
+        tk.Button(button_frame, text="Delete Card Arts", command=self.delete_card_arts, width=15).grid(row=0, column=1, padx=13)
         row_counter += 1
-
 
         # Help tab
         row_counter = 0
@@ -1116,8 +1264,7 @@ class YGOScramblerGUI(tk.Frame):
         cdb_link = tk.Label(help_tab, text="Click here to download EDOPro.", fg="blue", cursor="hand2")
         cdb_link.grid(row=row_counter, column=0, sticky="w", padx=5, pady=(5,0))
         cdb_link.bind("<Button-1>", lambda e: self.open_link(r"https://projectignis.github.io"))
-        row_counter += 1
-    
+
     def open_link(self, url):
         webbrowser.open_new(url)
 
@@ -1138,20 +1285,49 @@ class YGOScramblerGUI(tk.Frame):
             with config_file_path.open('r') as file:
                 config_json = json.load(file)
             found_repo = False
+            for i in range(len(config_json['urls']) - 1, -1, -1):
+                if 'YGO-Scrambler-Card-Art' in config_json['urls'][i]['url']:
+                    config_json['urls'].pop(i)
+                    found_repo = True
             for i in range(len(config_json['repos']) - 1, -1, -1):
-                if (config_json['repos'][i]['repo_name'] == "YGO Scrambler Card Art") or (config_json['repos'][i]['repo_name'] == "YGO Scrambler"):
+                if config_json['repos'][i]['repo_name'] == "YGO Scrambler":
                     config_json['repos'].pop(i)
                     found_repo = True
-                if found_repo:
-                    with config_file_path.open('w') as file:
-                        json.dump(config_json, file, indent=4)
+            if found_repo:
+                with config_file_path.open('w') as file:
+                    json.dump(config_json, file, indent=4)
 
         messagebox.showinfo("Config File Reset", "YGO Scrambler settings have been removed from your EDOPro config file.")
+
+    # Function to handle the Delete Card Arts button click
+    def delete_card_arts(self):
+        ignis_dir_entry = self.ignis_dir_config_path.get()
+        if not ignis_dir_entry:
+            messagebox.showerror("Missing Path to ProjectIgnis Directory", "Include a path to your ProjectIgnis directory.")
+            return
+
+        ignis_dir = Path(ignis_dir_entry)
+        if not ignis_dir.is_dir():
+            messagebox.showerror("Missing Path to ProjectIgnis Directory", "Could not find ProjectIgnis directory at:\r\n" + ignis_dir)
+            return
+
+        pics_dir = Path(ignis_dir, "pics")
+        if not pics_dir.is_dir():
+            messagebox.showerror("Missing Path to Pics Directory", "Could not find ProjectIgnis\\pics directory at:\r\n" + pics_dir)
+            return
+
+        for file_path in tqdm(list(Path(pics_dir).rglob("3"+("[0-9]"*9)+".jpg")), desc='Deleting scrambled card arts'):
+            file_path.unlink()
 
     # Function to open a .cdb file selection dialog
     def select_cdb_file(self):
         file_path = filedialog.askopenfilename(filetypes=[("CDB Files", "*.cdb")])
         self.cdb_path.set(file_path)
+
+    # Function to open a .cdb file selection dialog for opponent's .cdb file
+    def select_opp_cdb_file(self):
+        file_path = filedialog.askopenfilename(filetypes=[("CDB Files", "*.cdb")])
+        self.opp_cdb_path.set(file_path)
 
     # Function to open a banlist file selection dialog
     def select_banlist_file(self):
@@ -1170,13 +1346,6 @@ class YGOScramblerGUI(tk.Frame):
 
     def player_selected(self, event):
         player_number = self.player_number_dropdown.get()
-        # Uncomment when support for more than 2 players is implemented.
-        # for i in range(10):
-            # if i == int(player_number) - 1:
-                # self.opponent_checkboxes[i].config(state=tk.DISABLED)
-                # self.opponent_checkboxes[i].deselect()
-            # else:
-                # self.opponent_checkboxes[i].config(state=tk.NORMAL)
 
     # Function to handle the Scramble button click
     def scramble(self):
@@ -1188,28 +1357,23 @@ class YGOScramblerGUI(tk.Frame):
         if not old_db_path.is_file():
             messagebox.showerror("Missing .cdb File", "Could not find .cdb file at:\r\n" + str(old_db_path))
             return
-        
+
         ignis_dir_entry = self.ignis_dir_path.get()
         if not ignis_dir_entry:
             messagebox.showerror("Missing Path to ProjectIgnis Directory", "Include a path to your ProjectIgnis directory.")
             return
         ignis_dir = Path(ignis_dir_entry)
         scrambler_repo_path = Path(ignis_dir, 'repositories', 'ygo-scrambler')
-        scrambler_art_repo_path = Path(ignis_dir, 'repositories', 'ygo-scrambler-card-art')
         scrambler_repo_path.mkdir(parents=True, exist_ok=True)
         if not scrambler_repo_path.is_dir():
             messagebox.showerror("Could Not Create YGO Scrambler Repository", "Could not find/create a YGO Scrambler repository:\r\n" + str(scrambler_repo_path))
             return
-        img_old_path = Path(ignis_dir, 'pics')
         script_old_path1 = Path(ignis_dir, 'script\\official')
         script_old_path2 = Path(ignis_dir, 'repositories\\delta-bagooska\\script\\official')
         lflist_path = Path(scrambler_repo_path)
-        
+
         if not (ignis_dir.is_dir()):
             messagebox.showerror("Missing Path to ProjectIgnis Directory", "Could not find ProjectIgnis directory at:\r\n" + str(ignis_dir))
-            return
-        if not (img_old_path.is_dir()):
-            messagebox.showerror("Missing Path to ProjectIgnis pics Directory", "Could not find ProjectIgnis pics directory at:\r\n" + str(img_old_path))
             return
         if not (script_old_path1.is_dir()):
             messagebox.showerror("Missing Path to ProjectIgnis scripts Directory", "Could not find ProjectIgnis scripts directory at:\r\n" + str(script_old_path1))
@@ -1217,7 +1381,7 @@ class YGOScramblerGUI(tk.Frame):
         if not (lflist_path.is_dir()):
             messagebox.showerror("Missing Path to lflist Directory", "Could not find target lflist path at:\r\n" + str(lflist_path))
             return
-        
+
         banlist_path_entry = self.banlist_path.get().strip()
         banlist_path = Path(banlist_path_entry)
         if banlist_path_entry and not banlist_path.is_file():
@@ -1229,29 +1393,17 @@ class YGOScramblerGUI(tk.Frame):
 
         new_db_path = Path(scrambler_repo_path, 'P' + str(player_number) + 'Scrambled.cdb')
         db_path_for_opponent = Path(Path.cwd(), 'P' + str(player_number) + 'ScrambledForOpponent.cdb')
-        img_new_path = Path(scrambler_art_repo_path, 'pics')
-        force_img_download = self.download_img_check.get()
-        if force_img_download:
-            img_new_path = Path(scrambler_repo_path, 'pics')
         script_new_path = Path(scrambler_repo_path, 'script')
 
-        create_zip = self.create_zip_check.get()
-
         config_file_path = Path(ignis_dir, 'config', 'user_configs.json')
-        if not config_file_path.is_file():
-            with config_file_path.open('w') as file:
-                config_json = dict(repos=[])
-                json.dump(config_json, file)
 
-        # Uncomment when support for more than 2 players is implemented.
-        #opponent_numbers = [self.opponent_numbers[i].get() for i in range(10)]
         merge_choices = [self.merge_choices[i].get() for i in range(8)]
         merge_choices_hex = sum([merge_choices[x] * 2**x for x in range(len(merge_choices))])
         pool_size = int(self.pool_size.get().strip()) if self.pool_size.get().strip() else 0
         seed = int(self.seed.get().strip()) if self.seed.get().strip() else 0
-        
+
         rng = random.seed(seed)
-        
+
         match player_number:
             case 1:
                 PLAYER_ID_OFFSET = PLAYER_1_OFFSET
@@ -1285,9 +1437,9 @@ class YGOScramblerGUI(tk.Frame):
         elif "Randomize" in random_level:
             extra_random = 3
 
-        self.shuffle_and_create_new_db(old_db_path, new_db_path, db_path_for_opponent, force_img_download, img_old_path, img_new_path, create_zip, merge_choices_hex, script_old_path1, script_old_path2, script_new_path, lflist_path, config_file_path, banlist_path, extra_random, pool_size, seed)
-    
-    def shuffle_and_create_new_db(self, old_db_path, new_db_path, db_path_for_opponent, force_img_download, img_old_path, img_new_path, create_zip, merge_speeds, script_old_path1, script_old_path2, script_new_path, lflist_path, config_file_path, banlist_path, extra_random, pool_size, seed):
+        self.shuffle_and_create_new_db(old_db_path, new_db_path, db_path_for_opponent, merge_choices_hex, script_old_path1, script_old_path2, script_new_path, lflist_path, config_file_path, banlist_path, extra_random, pool_size, seed)
+
+    def shuffle_and_create_new_db(self, old_db_path, new_db_path, db_path_for_opponent, merge_speeds, script_old_path1, script_old_path2, script_new_path, lflist_path, config_file_path, banlist_path, extra_random, pool_size, seed):
         # Connect to the old database.
         conn_old = sqlite3.connect(f'file:{old_db_path}?mode=ro', uri=True)
         cursor_old = conn_old.cursor()
@@ -1295,11 +1447,11 @@ class YGOScramblerGUI(tk.Frame):
         # Retrieve the values from the "texts" table.
         cursor_old.execute("SELECT id, name, desc, str1, str2, str3, str4, str5, str6, str7, str8, str9, str10, str11, str12, str13, str14, str15, str16 FROM texts")
         textsrows = cursor_old.fetchall()
-        
+
         # Retrieve the values from the "datas" table.
         cursor_old.execute("SELECT id, ot, alias, setcode, type, atk, def, level, race, attribute, category FROM datas")
         datasrows = cursor_old.fetchall()
-        
+
         # Extract the values retrieved from the tables.
         old_ids = [row[0] for row in textsrows]     # The card's ID number.
         names = [row[1] for row in textsrows]       # The card's name.
@@ -1321,7 +1473,7 @@ class YGOScramblerGUI(tk.Frame):
         str15s = [row[17] for row in textsrows]
         str16s = [row[18] for row in textsrows]
         textfields = [old_ids, names, descs, str1s, str2s, str3s, str4s, str5s, str6s, str7s, str8s, str9s, str10s, str11s, str12s, str13s, str14s, str15s, str16s]
-        
+
         # See https://github.com/NaimSantos/DataEditorX/blob/master/DataEditorX/data/cardinfo_english.txt for what the values in these fields correspond to.
         dataids = [row[0] for row in datasrows]         # The card's ID number. This should be identical to old_ids.
         ots = [row[1] for row in datasrows]             # The card's format: OCG, TCG, Rush, custom card, and so on.
@@ -1356,7 +1508,7 @@ class YGOScramblerGUI(tk.Frame):
                         del field[i]
                     for field in datafields:
                         del field[i]
-        
+
         # Apply banlist to cardpool, if one was provided.
         if banlist_path and banlist_path.is_file():
             filtered_ids = banlist_file_filter(banlist_path, old_ids)
@@ -1379,18 +1531,18 @@ class YGOScramblerGUI(tk.Frame):
         pend_xyz_indexes = []
         pend_link_indexes = []      # None exist right now, but we're future proofing, just in case.
         link_monst_indexes = []
-        
+
         norm_spell_indexes = []
         field_spell_indexes = []
         equip_spell_indexes = []
         cont_spell_indexes = []
         quick_spell_indexes = []
         ritual_spell_indexes = []
-        
+
         norm_trap_indexes = []
         cont_trap_indexes = []
         counter_trap_indexes = []
-        
+
         # Create new copies of the data fields that will be randomized.
         new_ids = old_ids[:]
         new_names = names[:]
@@ -1402,10 +1554,10 @@ class YGOScramblerGUI(tk.Frame):
         new_levels = levels[:]
         new_races = races[:]
         new_attributes = attributes[:]
-        
+
         # These cards' scripts are affected by cards_specific_functions.lua and/or utility.lua. Since we don't want to alter those files and break real cards, we will just force these cards to never scramble.
         cards_to_unscramble = [89785779, 48829461, 14088859, 69832741, 84012625, 75223115, 42015635, 55049722, 75402014, 58858807, 12081875]
-        
+
         # Save which indexes into the data lists correspond to which type of card.
         # We do this so that Equip Spells only swap with Equip Spells, Links only swap with Links, and so on.
         for i in range(len(old_ids)):
@@ -1459,7 +1611,7 @@ class YGOScramblerGUI(tk.Frame):
                         counter_trap_indexes.append(i)
                     else:                           # Normal Trap
                         norm_trap_indexes.append(i)
-        
+
         norm_rit_spell_indexes = norm_spell_indexes + ritual_spell_indexes
         quick_spell_normal_trap_indexes = quick_spell_indexes + norm_trap_indexes
         cont_field_spell_indexes = cont_spell_indexes + field_spell_indexes
@@ -1490,9 +1642,9 @@ class YGOScramblerGUI(tk.Frame):
         all_synchro_indexes = synchro_monst_indexes + pend_sync_indexes
         all_xyz_indexes = xyz_monst_indexes + pend_xyz_indexes
         all_link_indexes = link_monst_indexes + pend_link_indexes
-        
+
         all_card_indexes = [equip_spell_indexes, cont_trap_indexes, counter_trap_indexes]
-        
+
         merge_pends = merge_speeds & 0x10
 
         if merge_speeds & 0x7 == 0x3:
@@ -1583,21 +1735,21 @@ class YGOScramblerGUI(tk.Frame):
             all_card_indexes.append(ritual_monst_indexes)
             all_card_indexes.append(pend_monst_indexes)
             all_card_indexes.append(pend_ritual_indexes)
-        
+
         new_effect_id_to_old_id_dict = {}
         old_id_to_new_effect_id_dict = {}
-        
+
         ritual_monster_id_lvs_dict = {}
         name_condition_dict = {}
-        
+
         if extra_random == 3:
             # Generate random values outside of loop to avoid recreating them every loop.
             rand_attr_values = [0x1]*100 + [0x2]*100 + [0x4]*100 + [0x8]*100 + [0x10]*100 + [0x20]*100 + [0x40]
             rand_race_values = [0x1]*100 + [0x2]*100 + [0x4]*100 + [0x8]*100 + [0x10]*100 + [0x20]*100 + [0x40]*100 + [0x80]*100 + [0x100]*100 + [0x200]*100 + [0x400]*100 + [0x800]*100 + [0x1000]*100 + [0x2000]*100 + [0x4000]*100 + [0x8000]*100 + [0x10000]*100 + [0x20000]*100 + [0x40000]*100 + [0x80000]*100 + [0x100000]*100 + [0x200000]*10 + [0x400000] + [0x800000]*100 + [0x1000000]*100 + [0x2000000]*100
             atk_values = [a for a in range(0, 3000, 100)] * 96 + [a for a in range(3000, 4000, 100)] * 3 + [a for a in range(4000, 4600, 100)]
             rand_atk_values = atk_values * 19 + [a + 50 for a in atk_values]
-
-        with tqdm(total=len(old_ids), desc="Scrambling database") as progress_bar:
+        cardcount = 0
+        with tqdm(total=len(old_ids)-len(cards_to_unscramble), desc="Scrambling database") as progress_bar:
             for index in all_card_indexes:
                 # Since we have multiple lists we want to shuffle the same way, we just take the list of indexes, shuffle it, and use that to put all the data in the other lists where it now belongs.
                 shuffled_index = index[:]
@@ -1613,7 +1765,7 @@ class YGOScramblerGUI(tk.Frame):
                 random.shuffle(extra_random_shuffled_index_race)
                 extra_random_shuffled_index_attr = index[:]
                 random.shuffle(extra_random_shuffled_index_attr)
-                
+
                 for i in range(len(index)):
                     new_ids[index[i]] = PLAYER_ID_OFFSET + old_ids[shuffled_index[i]]     # Konami uses 8 digit IDs. 9 digit IDs are used for custom cards, pre-errata
                                                                                     # cards, and so on, but 10 digit ids under 2^32 still seem to work.
@@ -1627,8 +1779,7 @@ class YGOScramblerGUI(tk.Frame):
                         new_levels[index[i]] = levels[index[i]]
                         new_races[index[i]] = races[index[i]]
                         new_attributes[index[i]] = attributes[index[i]]
-                        if merge_speeds & 0xe:
-                            new_types[index[i]] = types[shuffled_index[i]]
+                        new_types[index[i]] = types[shuffled_index[i]]  # Keep card type with the card, not the effect.
                     else:
                         if extra_random == 1:
                             # Since we're shuffling the stats together, we'll just use the atk one for all of them.
@@ -1685,7 +1836,7 @@ class YGOScramblerGUI(tk.Frame):
                                 new_levels[index[i]] = levels[shuffled_index[i]]
                             new_races[index[i]] = races[shuffled_index[i]]
                             new_attributes[index[i]] = attributes[shuffled_index[i]]
-                    
+
                     # Add alias to original cards, for cards that don't have aliases.
                     if aliases[shuffled_index[i]] == 0:
                         new_aliases[index[i]] = old_ids[shuffled_index[i]]
@@ -1694,11 +1845,11 @@ class YGOScramblerGUI(tk.Frame):
 
                     new_effect_id_to_old_id_dict[new_ids[index[i]]] = old_ids[index[i]]
                     old_id_to_new_effect_id_dict[old_ids[index[i]]] = new_ids[index[i]]
-                    
+
                     # Collect Ritual Monster ID, the old level that ritual had, and the new level it now has.
                     if types[index[i]] & 0x81 == 0x81:
                         ritual_monster_id_lvs_dict[new_ids[index[i]]] = (levels[index[i]], new_levels[index[i]])
-                    
+
                     # Collect Condition Effect texts (like names and archetypes) to return to the original card.
                     # "Number S0: Utopic ZEXAL", "Neo-Spacian Marine Dolphin", and "Neo-Spacian Twinkle Moss" get handled separately, since their texts do not follow standard formatting.
                     manual_condition_dict = {52653092: "(This card's original Rank is always treated as 1.)", 78734254: 'This card\'s name is also treated as "Neo-Spacian Aqua Dolphin".', 13857930: 'This card\'s name is also treated as "Neo-Spacian Glow Moss".'}
@@ -1727,8 +1878,11 @@ class YGOScramblerGUI(tk.Frame):
                         new_types[index[i]] |= 0x1000
 
                     # Update progress bar at the end of the loop
-                    progress_bar.update(1)
-        
+                    progress_bar.update()
+                    progress_bar.refresh()
+                    cardcount += 1
+        print("count:", cardcount)
+
         # Link monsters really don't work if the materials stay with the effect instead of the name/stats. (For example, how do you handle a Link-1 that says it takes 3+ monsters?)
         # So this replaces the materials listed in their text and replaces it with the materials from their original text.
         # The scripts are edited to match in fix_xyz_link_materials(), called below. (It is not currently used with Xyz monsters, but has not been renamed becuase it could be.)
@@ -1764,7 +1918,7 @@ class YGOScramblerGUI(tk.Frame):
                     effect_start = lines.index("[ Flavor Text ]") + 1
             lines[effect_start] = re.sub(r"(\d\+?( or more( \(max. \d\))?)? Level) \d\d?", r"\g<1> {}".format(level), lines[effect_start])
             descs[all_xyz_indexes[i]] = '\r\n'.join(lines)
-        
+
         # Some final cleanup on effect text.
         name_replace_fields = [descs, str1s, str2s, str3s, str4s, str5s, str6s, str7s, str8s, str9s, str10s, str11s, str12s, str13s, str14s, str15s, str16s]
         # Special cases for cards whose name is also their archetype, and use that archetype name in their effect.
@@ -1778,7 +1932,7 @@ class YGOScramblerGUI(tk.Frame):
                 if old_ids[i] not in ids_to_force_replace:
                     for phrase in phrases_not_to_replace:
                         text[i] = text[i].replace('"' + names[i] + '" ' + phrase, '"XXXXX" ' + phrase)
-                
+
                 text[i] = text[i].replace('"' + names[i] + '"', '"' + new_names[i] + '"')
                 text[i] = text[i].replace('"' + names[i] + '(s)"', '"' + new_names[i] + '(s)"')
                 if "of Endymion" in names[i]:
@@ -1809,11 +1963,11 @@ class YGOScramblerGUI(tk.Frame):
                     else:
                         effect_start += 1
                 descs[i] = '\r\n'.join(lines[0:effect_start]).strip() + ('\r\n' * (effect_start > 0)) + name_condition_dict[new_ids[i]] + '\r\n' + '\r\n'.join(lines[effect_start:]).strip()
-            
+
             descs[i] += "\r\n\r\n(Effect origin is: " + names[i] + ".)"
             if old_ids[i] in cards_to_unscramble:
                 descs[i] += "\r\n\r\n(Due to technical limitations, this card is set to never scramble. It may still not work completely accurately, so you may want to use the original unscrambled card instead.)"
-        
+
         with tqdm(total=13, desc="Saving scrambled database") as progress_bar:
             # Connect to the new database.
             conn_new = sqlite3.connect(new_db_path)
@@ -1856,7 +2010,7 @@ class YGOScramblerGUI(tk.Frame):
             # Add in a card marked illegal that records the seed used to generate the scramble.
             seed_card_text = "This scramble was generated with the Yu-Gi-Oh Card Scrambler, " + VERSION_NUMBER + ".\r\n"
             seed_card_text += "Scramble seed: " + str(seed) + "\r\n"
-            player_number = str(int((PLAYER_ID_OFFSET - PLAYER_10_OFFSET) / 100000000) or 10)
+            player_number = str((PLAYER_ID_OFFSET - PLAYER_10_OFFSET) // 100000000 or 10)
             seed_card_text += "Player number: " + player_number + "\r\n"
             if merge_speeds & 0x7 == 0x3:
                 seed_card_text += "Fusion and Synchro Monsters were merged.\r\n"
@@ -1924,7 +2078,7 @@ class YGOScramblerGUI(tk.Frame):
             # Insert the shuffled values into the new table.
             for id, alias, setcode, card_type, atk, defense, level, race, attribute, category in zip(new_ids, new_aliases, new_setcodes, new_types, new_atks, new_defs, new_levels, new_races, new_attributes, categorys):
                 cursor_new.execute(f"INSERT INTO datas (id, alias, setcode, type, atk, def, level, race, attribute, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (id, alias, setcode, card_type, atk, defense, level, race, attribute, category))
-            
+
             cursor_new.execute(f"INSERT INTO datas (id, ot, setcode, type, atk, def, level, race, attribute, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (PLAYER_ID_OFFSET, 8, 0, 0, 0, 0, 0, 0, 0, 0))
             progress_bar.update()
             progress_bar.refresh()
@@ -1934,12 +2088,12 @@ class YGOScramblerGUI(tk.Frame):
             conn_new.close()
             progress_bar.update()
             progress_bar.refresh()
-            
+
             # Get descriptions for opponent's database.
             opp_descs = add_flavor_text(descs, new_types, new_names, norm_effect_monst_indexes)
             progress_bar.update()
             progress_bar.refresh()
-            
+
             # Create database for opponent.
             conn_new = sqlite3.connect(db_path_for_opponent)
             cursor_new = conn_new.cursor()
@@ -1995,15 +2149,17 @@ class YGOScramblerGUI(tk.Frame):
                     level INTEGER,
                     race INTEGER,
                     attribute INTEGER,
-                    category INTEGER
+                    category INTEGER,
+                    old_id INTEGER,
+                    old_level INTEGER
                 )
             """)
             progress_bar.update()
             progress_bar.refresh()
 
             # Insert the shuffled values into the new table.
-            for id, alias, setcode, card_type, atk, defense, level, race, attribute, category in zip(new_ids, new_aliases, new_setcodes, new_types, new_atks, new_defs, new_levels, new_races, new_attributes, categorys):
-                cursor_new.execute(f"INSERT INTO datas (id, alias, setcode, type, atk, def, level, race, attribute, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (id, alias, setcode, card_type, atk, defense, level, race, attribute, category))
+            for id, alias, setcode, card_type, atk, defense, level, race, attribute, category, old_id, old_level in zip(new_ids, new_aliases, new_setcodes, new_types, new_atks, new_defs, new_levels, new_races, new_attributes, categorys, old_ids, levels):
+                cursor_new.execute(f"INSERT INTO datas (id, alias, setcode, type, atk, def, level, race, attribute, category, old_id, old_level) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (id, alias, setcode, card_type, atk, defense, level, race, attribute, category, old_id, old_level))
             progress_bar.update()
             progress_bar.refresh()
 
@@ -2014,76 +2170,199 @@ class YGOScramblerGUI(tk.Frame):
             progress_bar.update()
             progress_bar.refresh()
 
-        # Copy/Download card images.
-        if force_img_download:
-            download_images(old_ids, img_old_path, img_new_path)
-
         # Update user config file.
-        config_json = {}
-        with config_file_path.open('r') as file:
-            config_json = json.load(file)
+        update_config_file(config_file_path)
 
-        found_repo = False
-        found_art_repo = False
-        for repo in config_json['repos']:
-            if repo['repo_name'] == "YGO Scrambler":
-                found_repo = True
-            elif repo['repo_name'] == "YGO Scrambler Card Art":
-                found_art_repo = True
-        if not found_repo:
-            config_json['repos'].append(dict(repo_name='YGO Scrambler',
-                repo_path='./repositories/ygo-scrambler',
-                lflist_path='.',
-                script_path='./script',
-                should_update=True,
-                should_read=True,
-                not_git_repo=True))
-        if not found_art_repo and not force_img_download:
-            config_json['repos'].append(dict(repo_name='YGO Scrambler Card Art',
-                repo_path='./repositories/ygo-scrambler-card-art',
-                url='https://github.com/TheLetterJ0/YGO-Scrambler-Card-Art',
-                pics_path='./pics',
-                should_update=True,
-                should_read=True))
-        if not found_repo or (not force_img_download and not found_art_repo):
-            with config_file_path.open('w') as file:
-                json.dump(config_json, file, indent=4)
-        
         # Copy scripts
         copy_scripts(old_ids, new_ids, script_old_path1, script_old_path2, script_new_path, new_types)
 
         # Fix Ritual Spells so they can summon the new correct monsters.
         fix_ritual_spells(new_ids, script_new_path, ritual_spell_indexes, new_effect_id_to_old_id_dict, old_id_to_new_effect_id_dict, ritual_monster_id_lvs_dict)
-        
+
         if len(link_monst_indexes) > 0:
             # Give Link monsters their original summoning conditions.
             fix_xyz_link_materials(new_ids, script_old_path1, script_old_path2, script_new_path, [], link_monst_indexes)
-        
-        if len(xyz_monst_indexes) > 0:
+
+        if len(all_xyz_indexes) > 0:
             # Change Xyz monsters to be summoned according to their new rank.
             fix_xyz_material_levels(new_ids, new_levels, script_new_path, all_xyz_indexes)
             # Make sure "Number" Xyz monsters have their number identified in their script, and that non-"Number" Xyz monsters do not.
-            fix_xyz_numbers(new_ids, new_names, script_new_path, all_xyz_indexes)
+            if merge_speeds & 0x4 == 0x4:
+                fix_xyz_numbers(new_ids, new_names, script_new_path, all_extra_deck_indexes)
+            else:
+                fix_xyz_numbers(new_ids, new_names, script_new_path, all_xyz_indexes)
 
         # If Field and Continuous spells were swapped, make sure they have the correct type of effects.
         if merge_speeds & 0x4:
             fix_field_cont_spell_mix(new_ids, script_new_path, cont_field_spell_indexes, types, new_types)
 
+        naturia_ids = [new_ids[i] for i in range(len(new_ids)) if new_setcodes[i] in (0x2a, 0x52002a, 0x123002a)]
+        prankkids_ids = [new_ids[i] for i in range(len(new_ids)) if new_setcodes[i] == 0x120]
+        ursarctic_ids = [new_ids[i] for i in range(len(new_ids)) if new_setcodes[i] in (0x165, 0x1510165)]
+        with tqdm(total=len(naturia_ids+prankkids_ids+ursarctic_ids), desc="Fixing replacement effects") as replacement_progress_bar:
+            fix_replacement_effects(naturia_ids, "CARD_NATURIA_CAMELLIA", True, True, script_new_path, replacement_progress_bar)
+            fix_replacement_effects(prankkids_ids, "CARD_PRANKKIDS_MEOWMU", True, False, script_new_path, replacement_progress_bar)
+            fix_replacement_effects(ursarctic_ids, "CARD_URSARCTIC_BIG_DIPPER", True, True, script_new_path, replacement_progress_bar)
+
         fix_individual_cards(old_id_to_new_effect_id_dict, script_new_path)
 
         create_banlist_file(new_ids, lflist_path, pool_size, seed)
 
-        if create_zip:
-            try:
-                with zipfile.ZipFile("P" + player_number + "ScrambledScripts.zip", mode="w") as script_zip:
-                    for file_path in tqdm(list(Path(script_new_path).rglob("c3"+player_number+("[0-9]"*8)+".lua")), desc='Creating .zip of script files'):
-                        script_zip.write(file_path, arcname=file_path.relative_to(script_new_path))
-            except Exception as e:
-                print("Failed to create .zip of script files.")
-        
         messagebox.showinfo("Scramble complete!", "Done! You may now close the Scrambler window.")
 
-if __name__=="__main__": 
+    # Function to handle the Generate button click
+    def generate_opp_files(self):
+        old_db_path_entry = self.opp_cdb_path.get()
+        if not old_db_path_entry:
+            messagebox.showerror("Missing .cdb File", "Include a path to your opponent's .cdb file.")
+            return
+        opp_db_path = Path(old_db_path_entry)
+        if not opp_db_path.is_file():
+            messagebox.showerror("Missing .cdb File", "Could not find .cdb file at:\r\n" + str(opp_db_path))
+            return
+
+        ignis_dir_entry = self.ignis_dir_path.get()
+        if not ignis_dir_entry:
+            messagebox.showerror("Missing Path to ProjectIgnis Directory", "Include a path to your ProjectIgnis directory.")
+            return
+        ignis_dir = Path(ignis_dir_entry)
+        scrambler_repo_path = Path(ignis_dir, 'repositories', 'ygo-scrambler')
+        scrambler_repo_path.mkdir(parents=True, exist_ok=True)
+        if not scrambler_repo_path.is_dir():
+            messagebox.showerror("Could Not Create YGO Scrambler Repository", "Could not find/create a YGO Scrambler repository:\r\n" + str(scrambler_repo_path))
+            return
+        script_old_path1 = Path(ignis_dir, 'script\\official')
+        script_old_path2 = Path(ignis_dir, 'repositories\\delta-bagooska\\script\\official')
+
+        if not (ignis_dir.is_dir()):
+            messagebox.showerror("Missing Path to ProjectIgnis Directory", "Could not find ProjectIgnis directory at:\r\n" + str(ignis_dir))
+            return
+        if not (script_old_path1.is_dir()):
+            messagebox.showerror("Missing Path to ProjectIgnis scripts Directory", "Could not find ProjectIgnis scripts directory at:\r\n" + str(script_old_path1))
+            return
+
+        # Connect to the opponent's database.
+        conn_opp = sqlite3.connect(f'file:{opp_db_path}?mode=ro', uri=True)
+        cursor_old = conn_opp.cursor()
+
+        # Retrieve the names.
+        cursor_old.execute("SELECT name FROM texts")
+        textsrows = cursor_old.fetchall()
+
+        # Retrieve the scrambled and original IDs.
+        cursor_old.execute("SELECT id, type, level, old_id, old_level FROM datas")
+        datasrows = cursor_old.fetchall()
+
+        # Extract the values retrieved from the tables.
+        new_names = [row[0] for row in textsrows]       # The card's name.
+        new_ids = [row[0] for row in datasrows]     # The card's ID number.
+        new_types = [row[1] for row in datasrows]     # The card's type.
+        new_levels = [row[2] for row in datasrows]     # The card's level.
+        old_ids = [row[3] for row in datasrows]     # The card's original ID number.
+        old_levels = [row[4] for row in datasrows]     # The card's original level.
+
+        if new_ids[0] < PLAYER_10_OFFSET or new_ids[0] >= (PLAYER_9_OFFSET + PLAYER_1_OFFSET - PLAYER_10_OFFSET):
+            messagebox.showerror("Not a scrambled .cdb", "The given .cdb is not a scrambled file.")
+            return
+
+        config_file_path = Path(ignis_dir, 'config', 'user_configs.json')
+
+        player_number = (new_ids[0] - PLAYER_10_OFFSET) // 100000000 or 10
+        global PLAYER_ID_OFFSET
+        match player_number:
+            case 1:
+                PLAYER_ID_OFFSET = PLAYER_1_OFFSET
+            case 2:
+                PLAYER_ID_OFFSET = PLAYER_2_OFFSET
+            case 3:
+                PLAYER_ID_OFFSET = PLAYER_3_OFFSET
+            case 4:
+                PLAYER_ID_OFFSET = PLAYER_4_OFFSET
+            case 5:
+                PLAYER_ID_OFFSET = PLAYER_5_OFFSET
+            case 6:
+                PLAYER_ID_OFFSET = PLAYER_6_OFFSET
+            case 7:
+                PLAYER_ID_OFFSET = PLAYER_7_OFFSET
+            case 8:
+                PLAYER_ID_OFFSET = PLAYER_8_OFFSET
+            case 9:
+                PLAYER_ID_OFFSET = PLAYER_9_OFFSET
+            case 10:
+                PLAYER_ID_OFFSET = PLAYER_10_OFFSET
+            case _:
+                PLAYER_ID_OFFSET = PLAYER_10_OFFSET
+
+        # Generate needed inputs for script editing functions
+        script_new_path = Path(scrambler_repo_path, 'script')
+        old_id_to_new_effect_id_dict = {}
+        new_effect_id_to_old_id_dict = {}
+        ritual_monster_id_lvs_dict = {}
+        ritual_spell_indexes = []
+        cont_field_spell_indexes = []
+        all_extra_deck_indexes = []
+        link_monst_indexes = []
+        all_xyz_indexes = []
+        id_to_type_dict = {}
+        old_types = []
+        for i in range(len(old_ids)):
+            new_effect_id_to_old_id_dict[new_ids[i]] = old_ids[i]
+            old_id_to_new_effect_id_dict[old_ids[i]] = new_ids[i]
+            id_to_type_dict[new_ids[i]] = new_types[i]
+
+            if new_types[i] & 0x81 == 0x81:
+                ritual_monster_id_lvs_dict[new_ids[i]] = (old_levels[i], new_levels[i])
+            elif new_types[i] & 0x82 == 0x82:
+                ritual_spell_indexes.append(i)
+            elif new_types[i] & 0x2 and new_types[i] & 0xA0000:
+                cont_field_spell_indexes.append(i)
+            elif new_types[i] & 0x1:
+                if new_types[i] & 0x4802040:
+                    all_extra_deck_indexes.append(i)
+                    if new_types[i] & 0x4000000:
+                        link_monst_indexes.append(i)
+                    if new_types[i] & 0x800000:
+                        all_xyz_indexes.append(i)
+        old_types = [id_to_type_dict[i+PLAYER_ID_OFFSET] for i in old_ids]
+
+        # Copy scripts
+        copy_scripts(old_ids, new_ids, script_old_path1, script_old_path2, script_new_path, new_types)
+
+        # Fix Ritual Spells so they can summon the new correct monsters.
+        fix_ritual_spells(new_ids, script_new_path, ritual_spell_indexes, new_effect_id_to_old_id_dict, old_id_to_new_effect_id_dict, ritual_monster_id_lvs_dict)
+
+        if len(link_monst_indexes) > 0:
+            # Give Link monsters their original summoning conditions.
+            fix_xyz_link_materials(new_ids, script_old_path1, script_old_path2, script_new_path, [], link_monst_indexes)
+
+        if len(all_xyz_indexes) > 0:
+            # Change Xyz monsters to be summoned according to their new rank.
+            fix_xyz_material_levels(new_ids, new_levels, script_new_path, all_xyz_indexes)
+            # Make sure "Number" Xyz monsters have their number identified in their script, and that non-"Number" Xyz monsters do not.
+            fix_xyz_numbers(new_ids, new_names, script_new_path, all_extra_deck_indexes)
+
+        # If Field and Continuous spells were swapped, make sure they have the correct type of effects.
+        fix_field_cont_spell_mix(new_ids, script_new_path, cont_field_spell_indexes, old_types, new_types)
+
+        naturia_ids = [new_ids[i] for i in range(len(new_ids)) if new_setcodes[i] in (0x2a, 0x52002a, 0x123002a)]
+        prankkids_ids = [new_ids[i] for i in range(len(new_ids)) if new_setcodes[i] == 0x120]
+        ursarctic_ids = [new_ids[i] for i in range(len(new_ids)) if new_setcodes[i] in (0x165, 0x1510165)]
+        with tqdm(total=len(naturia_ids+prankkids_ids+ursarctic_ids), desc="Fixing replacement effects") as replacement_progress_bar:
+            fix_replacement_effects(naturia_ids, "CARD_NATURIA_CAMELLIA", True, True, script_new_path, replacement_progress_bar)
+            fix_replacement_effects(prankkids_ids, "CARD_PRANKKIDS_MEOWMU", True, False, script_new_path, replacement_progress_bar)
+            fix_replacement_effects(ursarctic_ids, "CARD_URSARCTIC_BIG_DIPPER", True, True, script_new_path, replacement_progress_bar)
+
+        fix_individual_cards(old_id_to_new_effect_id_dict, script_new_path)
+
+        # Copy the .cdb file into the repo folder
+        shutil.copy(old_db_path_entry, scrambler_repo_path)
+
+        # Update the config file, if necessary
+        update_config_file(config_file_path)
+
+        messagebox.showinfo("Generation complete!", "Done! You may now close the Scrambler window.")
+
+if __name__=="__main__":
     root = tk.Tk()
     YGOScramblerGUI(root).pack(side="top", fill="both", expand=True)
     root.mainloop()
