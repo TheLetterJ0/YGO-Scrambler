@@ -1,7 +1,6 @@
 import sqlite3
 import random
 from pathlib import Path
-# import urllib.request
 import shutil
 import json
 import re
@@ -10,14 +9,12 @@ from tkinter import filedialog, messagebox, ttk
 import webbrowser
 from multiprocessing.dummy import Pool as ThreadPool
 import multiprocessing
-# import itertools
 from tqdm import tqdm
 from functools import partial
-# from ratelimit import limits, sleep_and_retry
 import time
 import hashlib
 
-VERSION_NUMBER = "v1.6.0"
+VERSION_NUMBER = "v1.6.1"
 
 PLAYER_1_OFFSET = 3100000000
 PLAYER_2_OFFSET = 3200000000
@@ -840,17 +837,32 @@ def update_config_file(config_file_path):
             json.dump(config_json, file)
 
     config_json = {}
-    with config_file_path.open('r') as file:
-        config_json = json.load(file)
+    try:
+        with config_file_path.open('r') as file:
+            config_json = json.load(file)
+    except json.decoder.JSONDecodeError:
+        config_json = dict(repos=[])
 
     found_repo = False
     found_art_url = False
-    for repo in config_json['repos']:
-        if repo['repo_name'] == "YGO Scrambler":
-            found_repo = True
-    for url in config_json['urls']:
-        if "YGO-Scrambler-Card-Art" in url['url']:
-            found_art_url = True
+    try:
+        for repo in config_json['repos']:
+            try:
+                if repo['repo_name'] == "YGO Scrambler":
+                    found_repo = True
+            except KeyError:
+                pass
+    except KeyError:
+        config_json['repos'] = []
+    try:
+        for url in config_json['urls']:
+            try:
+                if "YGO-Scrambler-Card-Art" in url['url']:
+                    found_art_url = True
+            except KeyError:
+                pass
+    except KeyError:
+        config_json['urls'] = []
     if not found_repo:
         config_json['repos'].append(dict(repo_name='YGO Scrambler',
             repo_path='./repositories/ygo-scrambler',
@@ -860,8 +872,7 @@ def update_config_file(config_file_path):
             should_read=True,
             not_git_repo=True))
     if not found_art_url:
-        config_json['urls'].append(dict(url='https://raw.githubusercontent.com/TheLetterJ0/YGO-Scrambler-Card-Art/refs/heads/main/pics/{}.jpg',
-            type='pic'))
+        config_json['urls'].append(dict(url='https://raw.githubusercontent.com/TheLetterJ0/YGO-Scrambler-Card-Art/refs/heads/main/pics/{}.jpg',type='pic'))
     if not (found_repo and found_art_url):
         with config_file_path.open('w') as file:
             json.dump(config_json, file, indent=4)
