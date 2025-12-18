@@ -1748,7 +1748,7 @@ class YGOScramblerGUI(tk.Frame):
             rand_race_values = [0x1]*100 + [0x2]*100 + [0x4]*100 + [0x8]*100 + [0x10]*100 + [0x20]*100 + [0x40]*100 + [0x80]*100 + [0x100]*100 + [0x200]*100 + [0x400]*100 + [0x800]*100 + [0x1000]*100 + [0x2000]*100 + [0x4000]*100 + [0x8000]*100 + [0x10000]*100 + [0x20000]*100 + [0x40000]*100 + [0x80000]*100 + [0x100000]*100 + [0x200000]*10 + [0x400000] + [0x800000]*100 + [0x1000000]*100 + [0x2000000]*100
             atk_values = [a for a in range(0, 3000, 100)] * 96 + [a for a in range(3000, 4000, 100)] * 3 + [a for a in range(4000, 4600, 100)]
             rand_atk_values = atk_values * 19 + [a + 50 for a in atk_values]
-        cardcount = 0
+
         with tqdm(total=len(old_ids)-len(cards_to_unscramble), desc="Scrambling database") as progress_bar:
             for index in all_card_indexes:
                 # Since we have multiple lists we want to shuffle the same way, we just take the list of indexes, shuffle it, and use that to put all the data in the other lists where it now belongs.
@@ -1880,8 +1880,6 @@ class YGOScramblerGUI(tk.Frame):
                     # Update progress bar at the end of the loop
                     progress_bar.update()
                     progress_bar.refresh()
-                    cardcount += 1
-        print("count:", cardcount)
 
         # Link monsters really don't work if the materials stay with the effect instead of the name/stats. (For example, how do you handle a Link-1 that says it takes 3+ monsters?)
         # So this replaces the materials listed in their text and replaces it with the materials from their original text.
