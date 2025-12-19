@@ -272,7 +272,7 @@ def fix_xyz_numbers_parallel(id_and_name, script_new_path):
     if "Number" in new_name:
         numbers = re.findall(r'\d+', new_name)
         for n in numbers:
-            new_file_text += "s.xyz_number=" + str(n) + "\n"
+            new_file_text += "\ns.xyz_number=" + str(n) + "\n"
             changed = True
     if changed:
         with open(new_script_path, 'w', encoding="utf8") as file:
@@ -2374,4 +2374,5 @@ class YGOScramblerGUI(tk.Frame):
 if __name__=="__main__":
     root = tk.Tk()
     YGOScramblerGUI(root).pack(side="top", fill="both", expand=True)
+
     root.mainloop()
