@@ -5,16 +5,14 @@ import shutil
 import json
 import re
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox
 import webbrowser
 from multiprocessing.dummy import Pool as ThreadPool
-import multiprocessing
 from tqdm import tqdm
 from functools import partial
-import time
 import hashlib
 
-VERSION_NUMBER = "v1.6.1"
+VERSION_NUMBER = "v1.6.2"
 
 PLAYER_1_OFFSET = 3100000000
 PLAYER_2_OFFSET = 3200000000
@@ -345,8 +343,8 @@ def copy_and_fix_script(old_script_path, new_script_path, old_id):
                 newline = newline.replace("XXXXX", "()")
             if "GetCode()~=id" in newline:
                 newline = newline.replace("()", "XXXXX")
-                replace_string = r" \1(\2GetCode()~=math.fmod(\3,100000000) or " + " or ".join(fr"\2GetCode()~=math.fmod(\3,100000000)+{o}" for o in offsets) + ")"
-                newline = re.sub(r" (\(*)([A-Za-z0-9\(\):]*)GetCode\(\)~=(id.*?)", replace_string, newline)
+                replace_string = r" \1math.fmod(\2GetCodeXXXXX,100000000)~=math.fmod(\3,100000000)"
+                newline = re.sub(r" (\(*)([A-Za-z0-9\(\):]*)GetCodeXXXXX~=(id.*?)", replace_string, newline)
                 newline = newline.replace("XXXXX", "()")
             if "(Card.IsCode," in newline and ",id" in newline:
                 newline = newline.replace("()", "XXXXX")
@@ -359,7 +357,7 @@ def copy_and_fix_script(old_script_path, new_script_path, old_id):
 
 def fix_individual_cards(old_id_to_new_effect_id_dict, script_new_path):
     # Add progress bar
-    with tqdm(total=22, desc="Doing final script fixes") as progress_bar:
+    with tqdm(total=23, desc="Doing final script fixes") as progress_bar:
 
         # Fix "That's 10!"
         if 97223101 in old_id_to_new_effect_id_dict:
@@ -779,6 +777,24 @@ def fix_individual_cards(old_id_to_new_effect_id_dict, script_new_path):
         progress_bar.update()
         progress_bar.refresh()
 
+        # Fix scripts that use the metatable in a way that does not work with aliases ("Level Down!?", "Rank-Up-Magic - The Seventh One",
+        # "Rank-Up-Magic Quick Chaos", "Don Thousand's Throne", "Galaxy Satellite Dragon", "Number 78: Number Archive", "CXyz Barian Hope")
+        get_metatable_ids = [90500169, 57734012, 33252803, 93238626, 92362073, 29085954, 67926903]
+        for id in get_metatable_ids:
+            if id in old_id_to_new_effect_id_dict:
+                script_path = Path(script_new_path, 'c' + str(old_id_to_new_effect_id_dict[id]) + '.lua')
+                new_file_text = ""
+                with open(script_path, encoding="utf8") as file:
+                    for line in file:
+                        if ":GetMetatable(true)" in line:
+                            new_file_text += line.replace(":GetMetatable(true)", ":GetMetatable(false)")
+                        else:
+                            new_file_text += line
+                with open(script_path, 'w', encoding="utf8") as file:
+                    file.write(new_file_text)
+        progress_bar.update()
+        progress_bar.refresh()
+
 def fix_replacement_effects(effect_ids, replacement_constant, tributes_self, tributes_other, script_new_path, replacement_progress_bar):
     for eff_id in effect_ids:
         script_path = Path(script_new_path, 'c' + str(eff_id) + '.lua')
@@ -831,16 +847,11 @@ def fix_replacement_effects(effect_ids, replacement_constant, tributes_self, tri
         replacement_progress_bar.refresh()
 
 def update_config_file(config_file_path):
-    if not config_file_path.is_file():
-        with config_file_path.open('w') as file:
-            config_json = dict(repos=[])
-            json.dump(config_json, file)
-
     config_json = {}
     try:
         with config_file_path.open('r') as file:
             config_json = json.load(file)
-    except json.decoder.JSONDecodeError:
+    except (json.decoder.JSONDecodeError, FileNotFoundError):
         config_json = dict(repos=[])
 
     found_repo = False
@@ -2259,7 +2270,7 @@ class YGOScramblerGUI(tk.Frame):
         textsrows = cursor_old.fetchall()
 
         # Retrieve the scrambled and original IDs.
-        cursor_old.execute("SELECT id, type, level, old_id, old_level FROM datas")
+        cursor_old.execute("SELECT id, type, level, old_id, old_level, setcode FROM datas")
         datasrows = cursor_old.fetchall()
 
         # Extract the values retrieved from the tables.
@@ -2269,6 +2280,7 @@ class YGOScramblerGUI(tk.Frame):
         new_levels = [row[2] for row in datasrows]     # The card's level.
         old_ids = [row[3] for row in datasrows]     # The card's original ID number.
         old_levels = [row[4] for row in datasrows]     # The card's original level.
+        new_setcodes = [row[5] for row in datasrows]     # The card's archetypes.
 
         if new_ids[0] < PLAYER_10_OFFSET or new_ids[0] >= (PLAYER_9_OFFSET + PLAYER_1_OFFSET - PLAYER_10_OFFSET):
             messagebox.showerror("Not a scrambled .cdb", "The given .cdb is not a scrambled file.")
@@ -2374,5 +2386,4 @@ class YGOScramblerGUI(tk.Frame):
 if __name__=="__main__":
     root = tk.Tk()
     YGOScramblerGUI(root).pack(side="top", fill="both", expand=True)
-
     root.mainloop()
