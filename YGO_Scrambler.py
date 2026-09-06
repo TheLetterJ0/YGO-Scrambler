@@ -5,7 +5,7 @@ import shutil
 import json
 import re
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, ttk
 import webbrowser
 from multiprocessing.dummy import Pool as ThreadPool
 from tqdm import tqdm
@@ -1073,7 +1073,7 @@ class YGOScramblerGUI(tk.Frame):
         # parent.geometry("425x550")
         parent.resizable(False, False)
 
-        main = tk.ttk.Notebook(parent)
+        main = ttk.Notebook(parent)
         main.pack(expand = True, fill ="both")
 
         scramble_tab = tk.Frame(main)
@@ -1122,7 +1122,7 @@ class YGOScramblerGUI(tk.Frame):
         tk.Label(scramble_tab, text="Select your player number:").grid(row=row_counter, column=0, sticky="w", padx=5, pady=(5,0))
         row_counter += 1
         self.player_number = tk.IntVar(value=1)
-        self.player_number_dropdown = tk.ttk.Combobox(scramble_tab, state="readonly", textvariable=self.player_number, values=list(range(1, 11)), width=3)
+        self.player_number_dropdown = ttk.Combobox(scramble_tab, state="readonly", textvariable=self.player_number, values=list(range(1, 11)), width=3)
         self.player_number_dropdown.grid(row=row_counter, column=0, padx=13, sticky="w")
         row_counter += 1
         self.player_number_dropdown.current(0)
@@ -1159,7 +1159,7 @@ class YGOScramblerGUI(tk.Frame):
         row_counter += 1
         tk.Label(random_frame, text="Change monster stats?").grid(row=0, column=0, sticky="w", padx=5, pady=(0,0))
         self.extra_random = tk.StringVar(value="Don't change stats")
-        self.extra_random_dropdown = tk.ttk.Combobox(random_frame, state="readonly", textvariable=self.extra_random, values=list(["Don't change stats", "Shuffle stats together", "Shuffle stats separately", "Randomize stats"]))
+        self.extra_random_dropdown = ttk.Combobox(random_frame, state="readonly", textvariable=self.extra_random, values=list(["Don't change stats", "Shuffle stats together", "Shuffle stats separately", "Randomize stats"]))
         self.extra_random_dropdown.grid(row=0, column=1, padx=13, sticky="w")
         self.extra_random_dropdown.current(0)
 
